@@ -1,0 +1,79 @@
+name: OneMart
+options:
+  bundleIdPrefix: com.onemart
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+  developmentLanguage: en
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    ENABLE_PREVIEWS: YES
+    ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+    ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+
+targets:
+  OneMart:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: OneMart
+    info:
+      path: OneMart/Resources/Info.plist
+      properties:
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        CFBundleDisplayName: OneMart
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.onemart.app
+        TARGETED_DEVICE_FAMILY: "1"
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+    capabilities: {}
+
+  OneMartTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: OneMartTests
+    dependencies:
+      - target: OneMart
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.onemart.app.tests
+
+  OneMartUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: OneMartUITests
+    dependencies:
+      - target: OneMart
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.onemart.app.uitests
+
+schemes:
+  OneMart:
+    build:
+      targets:
+        OneMart: all
+        OneMartTests: [test]
+        OneMartUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - OneMartTests
+        - OneMartUITests
+    archive:
+      config: Release
