@@ -3,9 +3,10 @@ import SwiftUI
 /// Ordinary e-commerce style registration (Shopee/Lazada-shaped): name, email,
 /// mobile, password + confirmation, and a Terms & Privacy checkbox.
 ///
-/// Validation runs client-side with per-field inline errors; on success
-/// `AppState.signUp` creates the profile and drops the user straight into the
-/// app, after a short "Account Created!" confirmation.
+/// Validation runs client-side first with per-field inline errors, then
+/// `AppState.signUp` creates a real Supabase Auth account. If the project
+/// requires email confirmation, the success screen asks the user to check
+/// their inbox instead of dropping them straight into the app.
 struct SignUpScreen: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -26,6 +27,8 @@ struct SignUpScreen: View {
 
     @State private var isSubmitting = false
     @State private var didSucceed = false
+    @State private var needsEmailConfirmation = false
+    @State private var submitError: String?
 
     var body: some View {
         ZStack {
@@ -50,6 +53,10 @@ struct SignUpScreen: View {
                 header
 
                 VStack(spacing: AppSpacing.sm) {
+                    if let submitError {
+                        InlineBanner(kind: .error, message: submitError)
+                    }
+
                     AppTextField(
                         label: "Full Name",
                         placeholder: "Maria Santos",
@@ -231,19 +238,33 @@ struct SignUpScreen: View {
                 Circle()
                     .fill(AppColor.success.opacity(0.14))
                     .frame(width: 96, height: 96)
-                Image(systemName: "checkmark")
+                Image(systemName: needsEmailConfirmation ? "envelope.badge.fill" : "checkmark")
                     .font(.system(size: 40, weight: .bold))
                     .foregroundStyle(AppColor.success)
             }
-            Text("Account Created!")
+            Text(needsEmailConfirmation ? "Check Your Email" : "Account Created!")
                 .appTextStyle(AppTextStyle.title)
-            Text("Welcome to OneMart, \(firstName)! Taking you to the app…")
-                .appTextStyle(AppTextStyle.callout, color: AppColor.textSecondary)
-                .multilineTextAlignment(.center)
+
+            if needsEmailConfirmation {
+                Text("We sent a confirmation link to \(email). Verify your email, then log in.")
+                    .appTextStyle(AppTextStyle.callout, color: AppColor.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, AppSpacing.xl)
+
+                PrimaryButton(title: "Back to Log In") {
+                    withAnimation(AppMotion.easeStandard) { appState.phase = .login }
+                }
                 .padding(.horizontal, AppSpacing.xl)
-            ProgressView()
-                .tint(AppColor.coral)
                 .padding(.top, AppSpacing.xs)
+            } else {
+                Text("Welcome to OneMart, \(firstName)! Taking you to the app…")
+                    .appTextStyle(AppTextStyle.callout, color: AppColor.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, AppSpacing.xl)
+                ProgressView()
+                    .tint(AppColor.coral)
+                    .padding(.top, AppSpacing.xs)
+            }
         }
         .padding(AppSpacing.lg)
     }
@@ -304,27 +325,29 @@ struct SignUpScreen: View {
         guard validate() else { return }
 
         isSubmitting = true
+        submitError = nil
         Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 700_000_000)
-            isSubmitting = false
-            didSucceed = true
+            do {
+                let outcome = try await appState.signUp(
+                    name: name,
+                    email: email,
+                    phone: phone,
+                    password: password,
+                    confirmPassword: confirmPassword
+                )
+                isSubmitting = false
+                needsEmailConfirmation = (outcome == .needsEmailConfirmation)
+                didSucceed = true
 
-            // Hold the "Account Created!" confirmation on screen for a beat,
-            // then hand off to AppState — which moves the app to `.main` and
-            // tears this screen down.
-            try? await Task.sleep(nanoseconds: 1_200_000_000)
-
-            let created = appState.signUp(
-                name: name,
-                email: email,
-                phone: phone,
-                password: password,
-                confirmPassword: confirmPassword
-            )
-            if !created {
-                // Belt-and-braces: local validation already covers these cases.
-                didSucceed = false
-                emailError = "We couldn't create that account. Check your details."
+                if outcome == .signedIn {
+                    // Hold the "Account Created!" confirmation on screen for a
+                    // beat, then flip the phase — which tears this screen down.
+                    try? await Task.sleep(nanoseconds: 1_200_000_000)
+                    appState.enterAppAfterSignUp()
+                }
+            } catch {
+                isSubmitting = false
+                submitError = error.localizedDescription
             }
         }
     }

@@ -18,10 +18,14 @@ struct AppShellHeader: View {
     var cart: CartKind?
     var showsMessages: Bool = false
     var showsProfile: Bool = true
+    /// Only Home passes `true` — the bell is deliberately not repeated on
+    /// every tab.
+    var showsNotificationBell: Bool = false
 
     @EnvironmentObject private var appState: AppState
     @State private var presentedCart: CartKind?
     @State private var showsMessagesSheet = false
+    @State private var showsNotificationsSheet = false
 
     var body: some View {
         HStack(alignment: .center, spacing: AppSpacing.sm) {
@@ -36,6 +40,16 @@ struct AppShellHeader: View {
             }
 
             Spacer(minLength: 0)
+
+            if showsNotificationBell {
+                iconButton(
+                    systemName: "bell.fill",
+                    badge: appState.unreadNotificationCount,
+                    accessibilityLabel: "Notifications, \(appState.unreadNotificationCount) unread"
+                ) {
+                    showsNotificationsSheet = true
+                }
+            }
 
             if showsMessages {
                 iconButton(
@@ -87,6 +101,9 @@ struct AppShellHeader: View {
         }
         .sheet(isPresented: $showsMessagesSheet) {
             MessagesSheet()
+        }
+        .sheet(isPresented: $showsNotificationsSheet) {
+            NotificationsInboxView()
         }
     }
 

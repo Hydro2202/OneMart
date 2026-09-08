@@ -66,6 +66,18 @@ enum AppTab: String, CaseIterable, Identifiable {
         case .market: return .shop
         }
     }
+
+    /// Which tab a module's orders/content belong to — the reverse of
+    /// `module`. Shared by Home's activity feed and the cross-tab active-order
+    /// tracking bar so both jump to the same place for the same order.
+    static func tab(for module: ServiceModule) -> AppTab {
+        switch module {
+        case .food: return .food
+        case .rides: return .rides
+        case .logistics: return .logistics
+        case .shop, .community: return .market
+        }
+    }
 }
 
 /// Which section Profile opens on. Home's wallet card deep-links straight to
@@ -201,8 +213,30 @@ final class AppState: ObservableObject {
 
     // MARK: - Cart mutation
 
+    /// The restaurant currently occupying the food cart, if any. The food
+    /// cart can only ever hold dishes from one restaurant at a time.
+    var foodCartRestaurantName: String? {
+        for line in foodCart {
+            if case .food(_, let name) = line.source { return name }
+        }
+        return nil
+    }
+
+    /// Returns the name of the restaurant already in the food cart when it
+    /// differs from `restaurantName` — the signal a caller uses to confirm
+    /// with the user before switching restaurants. `nil` means it's safe to
+    /// add straight away (empty cart, or same restaurant).
+    func conflictingRestaurantName(for restaurantName: String) -> String? {
+        guard let existing = foodCartRestaurantName, existing != restaurantName else { return nil }
+        return existing
+    }
+
     /// Adds a menu item to the **food** cart, merging with an existing line for
     /// the same dish from the same restaurant.
+    ///
+    /// Does **not** guard against mixing restaurants itself — callers must
+    /// check `conflictingRestaurantName(for:)` first and route through
+    /// `replaceFoodCart(with:from:quantity:)` when the user confirms a switch.
     func addToFoodCart(_ item: MenuItem, from restaurantName: String, quantity: Int = 1) {
         guard quantity > 0 else { return }
         let existingIndex = foodCart.firstIndex { line in
@@ -218,6 +252,15 @@ final class AppState: ObservableObject {
                 CartItem(source: .food(item: item, restaurantName: restaurantName), quantity: quantity)
             )
         }
+    }
+
+    /// Empties the food cart and adds this item — the food cart can only ever
+    /// hold dishes from one restaurant, so switching restaurants clears
+    /// whatever was there. Only call this after the user has confirmed the
+    /// switch (see `conflictingRestaurantName(for:)`).
+    func replaceFoodCart(with item: MenuItem, from restaurantName: String, quantity: Int = 1) {
+        foodCart.removeAll()
+        addToFoodCart(item, from: restaurantName, quantity: quantity)
     }
 
     /// Adds a product to the **shop** cart, merging with an existing line for
@@ -327,6 +370,145 @@ final class AppState: ObservableObject {
 
     var favoriteListings: [MarketplaceListing] {
         communityListings.filter { favoriteListingIDs.contains($0.id) }
+    }
+
+    // MARK: - Saved addresses
+
+    /// Appends a new saved address. If it's marked default (or it's the
+    /// user's very first address), every other address is un-defaulted so
+    /// exactly one stays default.
+    func addAddress(_ address: SavedAddress) {
+        guard var user = currentUser else { return }
+        var addresses = user.savedAddresses
+        let shouldBeDefault = address.isDefault || addresses.isEmpty
+        if shouldBeDefault {
+            addresses = addresses.map { existing in
+                SavedAddress(id: existing.id, label: existing.label, fullAddress: existing.fullAddress, icon: existing.icon, isDefault: false)
+            }
+        }
+        addresses.append(
+            SavedAddress(id: address.id, label: address.label, fullAddress: address.fullAddress, icon: address.icon, isDefault: shouldBeDefault)
+        )
+        user.savedAddresses = addresses
+        currentUser = user
+    }
+
+    /// Replaces the address with a matching id. If the edited address is now
+    /// marked default, every other address is un-defaulted.
+    func updateAddress(_ address: SavedAddress) {
+        guard var user = currentUser else { return }
+        var addresses = user.savedAddresses
+        guard addresses.contains(where: { $0.id == address.id }) else { return }
+        addresses = addresses.map { existing in
+            guard existing.id == address.id else {
+                return address.isDefault
+                    ? SavedAddress(id: existing.id, label: existing.label, fullAddress: existing.fullAddress, icon: existing.icon, isDefault: false)
+                    : existing
+            }
+            return address
+        }
+        user.savedAddresses = addresses
+        currentUser = user
+    }
+
+    /// Removes an address. If it was the default and others remain, the first
+    /// remaining address becomes the new default so there's always one set
+    /// whenever the list isn't empty.
+    func deleteAddress(_ id: UUID) {
+        guard var user = currentUser else { return }
+        var addresses = user.savedAddresses
+        let wasDefault = addresses.first(where: { $0.id == id })?.isDefault ?? false
+        addresses.removeAll { $0.id == id }
+        if wasDefault, let firstIndex = addresses.indices.first {
+            let first = addresses[firstIndex]
+            addresses[firstIndex] = SavedAddress(id: first.id, label: first.label, fullAddress: first.fullAddress, icon: first.icon, isDefault: true)
+        }
+        user.savedAddresses = addresses
+        currentUser = user
+    }
+
+    /// Marks one address default and every other address not-default.
+    func setDefaultAddress(_ id: UUID) {
+        guard var user = currentUser else { return }
+        user.savedAddresses = user.savedAddresses.map { existing in
+            SavedAddress(id: existing.id, label: existing.label, fullAddress: existing.fullAddress, icon: existing.icon, isDefault: existing.id == id)
+        }
+        currentUser = user
+    }
+
+    // MARK: - Profile editing
+
+    /// Updates the editable basics from the Edit Profile screen. Trims input
+    /// and requires a non-empty name and a plausible email/phone, same rules
+    /// as Sign Up.
+    @discardableResult
+    func updateProfile(name: String, email: String, phone: String) -> Bool {
+        guard var user = currentUser else { return false }
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedPhone = phone.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !trimmedName.isEmpty,
+              AppState.isPlausibleEmail(trimmedEmail),
+              AppState.isPlausiblePhone(trimmedPhone) else {
+            return false
+        }
+
+        user = UserProfile(
+            id: user.id,
+            name: trimmedName,
+            photoName: user.photoName,
+            photoData: user.photoData,
+            phone: trimmedPhone,
+            email: trimmedEmail,
+            walletBalance: user.walletBalance,
+            memberSince: user.memberSince,
+            savedAddresses: user.savedAddresses
+        )
+        currentUser = user
+        return true
+    }
+
+    /// Replaces the profile photo with image data picked from the system
+    /// photo library. Pass `nil` to fall back to the initials/symbol avatar.
+    func updateProfilePhoto(_ data: Data?) {
+        guard var user = currentUser else { return }
+        user = UserProfile(
+            id: user.id,
+            name: user.name,
+            photoName: user.photoName,
+            photoData: data,
+            phone: user.phone,
+            email: user.email,
+            walletBalance: user.walletBalance,
+            memberSince: user.memberSince,
+            savedAddresses: user.savedAddresses
+        )
+        currentUser = user
+    }
+
+    // MARK: - Notifications
+
+    @Published private(set) var notifications: [AppNotification] = MockNotifications.all
+    @Published var notificationPreferences = NotificationPreferences()
+
+    var unreadNotificationCount: Int {
+        notifications.filter { !$0.isRead }.count
+    }
+
+    var sortedNotifications: [AppNotification] {
+        notifications.sorted { $0.date > $1.date }
+    }
+
+    func markNotificationRead(_ id: UUID) {
+        guard let index = notifications.firstIndex(where: { $0.id == id }) else { return }
+        notifications[index].isRead = true
+    }
+
+    func markAllNotificationsRead() {
+        for index in notifications.indices {
+            notifications[index].isRead = true
+        }
     }
 
     // MARK: - Community listings
@@ -532,46 +714,94 @@ final class AppState: ObservableObject {
 
     // MARK: - Auth
 
-    /// Accepts only the demo credentials (email compared case-insensitively).
-    /// Any other input returns `false` so Login can show a real inline error.
-    @discardableResult
-    func logIn(email: String, password: String) -> Bool {
-        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmedEmail.lowercased() == MockUser.demoEmail.lowercased(),
-              password == MockUser.demoPassword else {
-            return false
+    enum AuthValidationError: LocalizedError {
+        case missingName
+        case invalidEmail
+        case invalidPhone
+        case weakPassword
+        case passwordMismatch
+
+        var errorDescription: String? {
+            switch self {
+            case .missingName: return "Full name is required."
+            case .invalidEmail: return "Enter a valid email address."
+            case .invalidPhone: return "Enter a valid mobile number."
+            case .weakPassword: return "Password must be at least 8 characters."
+            case .passwordMismatch: return "Passwords do not match."
+            }
         }
-        currentUser = MockUser.demo
-        activeTab = .home
-        phase = .main
-        return true
     }
 
-    /// Real (client-side) validation: every field required, plausible email,
-    /// at least 8 characters, and matching confirmation. Logs the new user in
-    /// on success.
+    /// Signs in against real Supabase Auth and loads the resulting profile.
+    /// Throws whatever Supabase Auth throws (invalid credentials, network
+    /// error, …) — callers show `error.localizedDescription` directly rather
+    /// than a canned message, since that's the actual reason it failed.
+    func logIn(email: String, password: String) async throws {
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        try await AuthRepository.signIn(email: trimmedEmail, password: password)
+        currentUser = try await AuthRepository.fetchCurrentProfile()
+        activeTab = .home
+        phase = .main
+    }
+
+    /// Client-side validation first (every field required, plausible email,
+    /// at least 8 characters, matching confirmation — cheap, immediate, no
+    /// round trip), then the real Supabase Auth sign-up.
+    ///
+    /// Deliberately does **not** flip `phase`/`activeTab` itself, even on
+    /// `.signedIn` — `currentUser` is loaded and ready, but SignUpScreen
+    /// holds its "Account Created!" confirmation on screen for a beat first
+    /// and switches phase itself once that beat is over. (`logIn` above
+    /// flips phase immediately instead, since Login has no equivalent
+    /// on-screen confirmation to hold for.)
     @discardableResult
-    func signUp(name: String, email: String, phone: String, password: String, confirmPassword: String) -> Bool {
+    func signUp(name: String, email: String, phone: String, password: String, confirmPassword: String) async throws -> AuthRepository.SignUpOutcome {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedPhone = phone.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        guard !trimmedName.isEmpty,
-              AppState.isPlausibleEmail(trimmedEmail),
-              AppState.isPlausiblePhone(trimmedPhone),
-              password.count >= 8,
-              password == confirmPassword else {
-            return false
-        }
+        guard !trimmedName.isEmpty else { throw AuthValidationError.missingName }
+        guard AppState.isPlausibleEmail(trimmedEmail) else { throw AuthValidationError.invalidEmail }
+        guard AppState.isPlausiblePhone(trimmedPhone) else { throw AuthValidationError.invalidPhone }
+        guard password.count >= 8 else { throw AuthValidationError.weakPassword }
+        guard password == confirmPassword else { throw AuthValidationError.passwordMismatch }
 
-        currentUser = MockUser.newAccount(name: trimmedName, email: trimmedEmail, phone: trimmedPhone)
+        let outcome = try await AuthRepository.signUp(name: trimmedName, email: trimmedEmail, phone: trimmedPhone, password: password)
+        if outcome == .signedIn {
+            currentUser = try await AuthRepository.fetchCurrentProfile()
+        }
+        return outcome
+    }
+
+    /// Completes the phase switch `signUp(...)` deliberately held back —
+    /// called by SignUpScreen once its success confirmation has been on
+    /// screen for a beat.
+    func enterAppAfterSignUp() {
         activeTab = .home
         phase = .main
-        return true
+    }
+
+    /// Called once from `SplashScreen` at launch — skips Login entirely when
+    /// a still-valid Supabase session already exists.
+    func restoreSessionIfAvailable() async {
+        guard await AuthRepository.hasValidSession() else {
+            phase = .login
+            return
+        }
+        do {
+            currentUser = try await AuthRepository.fetchCurrentProfile()
+            phase = .main
+        } catch {
+            // Session existed but the profile fetch failed (migration not
+            // applied yet, row deleted, network hiccup) — fall back to
+            // Login rather than presenting a signed-in shell with no profile.
+            phase = .login
+        }
     }
 
     /// Resets every piece of session state back to logged-out defaults.
-    func logOut() {
+    func logOut() async {
+        try? await AuthRepository.signOut()
         currentUser = nil
         phase = .login
         activeTab = .home
@@ -587,6 +817,8 @@ final class AppState: ObservableObject {
         messageThreads = MockMessages.threads
         communityListings = MockListings.all
         placedOrders.removeAll()
+        notifications = MockNotifications.all
+        notificationPreferences = NotificationPreferences()
     }
 
     // MARK: - Validation helpers
@@ -615,9 +847,17 @@ final class AppState: ObservableObject {
 
 extension AppState {
     /// A signed-in state with a couple of cart items, used by `#Preview`s.
+    ///
+    /// Deliberately bypasses `logIn(email:password:)` entirely — that now
+    /// makes a real network call to Supabase, and a canvas preview should
+    /// never depend on network access (or a live project) just to render.
+    /// `MockUser.demo` lives on purely as this preview fixture now that real
+    /// auth has replaced the old hardcoded-credentials login.
     static var previewSignedIn: AppState {
         let state = AppState()
-        _ = state.logIn(email: MockUser.demoEmail, password: MockUser.demoPassword)
+        state.currentUser = MockUser.demo
+        state.activeTab = .home
+        state.phase = .main
         if let restaurant = MockRestaurants.all.first,
            let item = restaurant.menu.first?.items.first {
             state.addToFoodCart(item, from: restaurant.name, quantity: 2)

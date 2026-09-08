@@ -272,7 +272,7 @@ struct RidesScreen: View {
         switch searchState {
         case .idle:
             VStack(alignment: .leading, spacing: AppSpacing.sm) {
-                PaymentMethodPicker(selection: $paymentSelection, amountDue: fare) {
+                PaymentMethodPicker(selection: $paymentSelection, amountDue: fare, cashOnDeliveryLabel: "Cash") {
                     showsTopUp = true
                 }
 
@@ -346,7 +346,7 @@ struct RidesScreen: View {
                 .padding(.vertical, AppSpacing.xs)
                 .background(AppColor.backgroundTertiary, in: RoundedRectangle(cornerRadius: AppRadius.sm))
 
-                PaymentMethodPicker(selection: $paymentSelection, amountDue: fare) {
+                PaymentMethodPicker(selection: $paymentSelection, amountDue: fare, cashOnDeliveryLabel: "Cash") {
                     showsTopUp = true
                 }
 
@@ -569,6 +569,7 @@ struct DriverRow: View {
 
     var body: some View {
         HStack(spacing: AppSpacing.sm) {
+            // Real photo swap point: replace with the driver's real profile photo once available.
             Image(systemName: driver.photoName)
                 .font(.system(size: 30))
                 .foregroundStyle(AppColor.jade)

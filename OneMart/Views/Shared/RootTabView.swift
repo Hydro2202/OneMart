@@ -15,9 +15,12 @@ struct RootTabView: View {
             AppColor.backgroundPrimary.ignoresSafeArea()
 
             tabContent
-                .padding(.bottom, AppTabBar.height)
+                .padding(.bottom, AppTabBar.height + (appState.activeOrders.isEmpty ? 0 : ActiveOrderBar.height))
 
-            AppTabBar()
+            VStack(spacing: 0) {
+                ActiveOrderBar()
+                AppTabBar()
+            }
         }
         .fullScreenCover(isPresented: $appState.showProfile) {
             ProfileScreen()
@@ -128,6 +131,79 @@ struct AppTabBar: View {
         case .food: return appState.foodCartCount
         case .market: return appState.shopCartCount
         default: return 0
+        }
+    }
+}
+
+/// Docked strip that surfaces the most recent in-progress order — food,
+/// rides, or a parcel — above the tab bar on **every** tab, not just Home.
+/// This is what makes "your order is being prepared / on the way" visible no
+/// matter which tab the user wanders off to.
+struct ActiveOrderBar: View {
+    static let height: CGFloat = 52
+
+    @EnvironmentObject private var appState: AppState
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var isPulsing = false
+
+    private var activeOrders: [Order] { appState.activeOrders }
+
+    var body: some View {
+        if let order = activeOrders.first {
+            Button {
+                appState.activeTab = AppTab.tab(for: order.module)
+            } label: {
+                HStack(spacing: AppSpacing.xs) {
+                    ZStack {
+                        Circle()
+                            .fill(order.module.tintColor.opacity(0.35))
+                            .frame(width: 10, height: 10)
+                            .scaleEffect(isPulsing ? 1.8 : 1)
+                            .opacity(isPulsing ? 0 : 1)
+                            .animation(
+                                reduceMotion ? nil : .easeOut(duration: 1.4).repeatForever(autoreverses: false),
+                                value: isPulsing
+                            )
+                        Circle()
+                            .fill(order.module.tintColor)
+                            .frame(width: 8, height: 8)
+                    }
+                    .frame(width: 18)
+
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("\(order.module.shortName) · \(order.status.rawValue)")
+                            .font(AppFont.rounded(12, weight: .bold))
+                            .foregroundStyle(order.module.tintColor)
+                        Text(order.title)
+                            .appTextStyle(AppTextStyle.caption, color: AppColor.textSecondary)
+                            .lineLimit(1)
+                    }
+
+                    Spacer(minLength: AppSpacing.xs)
+
+                    if activeOrders.count > 1 {
+                        Text("+\(activeOrders.count - 1) more")
+                            .font(AppTextStyle.caption2)
+                            .foregroundStyle(AppColor.textTertiary)
+                    }
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(AppColor.textTertiary)
+                }
+                .padding(.horizontal, AppSpacing.md)
+                .frame(height: Self.height)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.pressable)
+            .background(AppColor.backgroundSecondary)
+            .overlay(alignment: .top) {
+                Rectangle().fill(AppColor.borderSubtle).frame(height: 1)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("\(order.module.shortName) order \(order.status.rawValue.lowercased()): \(order.title). Tap to track.")
+            .onAppear { isPulsing = true }
+            .transition(.move(edge: .bottom).combined(with: .opacity))
         }
     }
 }

@@ -158,6 +158,8 @@ struct CreateListingView: View {
         .scrollDismissesKeyboard(.interactively)
     }
 
+    // Real photo picker goes here: replace this placeholder with a PhotosPicker
+    // (see EditProfileView.swift for the pattern) once sellers can attach real photos.
     private var photoPlaceholder: some View {
         VStack(spacing: AppSpacing.xs) {
             Image(systemName: "photo.on.rectangle.angled")

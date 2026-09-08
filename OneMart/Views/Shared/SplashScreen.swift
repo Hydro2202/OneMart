@@ -149,9 +149,13 @@ struct SplashScreen: View {
         }
 
         await sleep(advanceBeat - lockupBeat)
-        withAnimation(AppMotion.easeStandard) {
-            appState.phase = .login
-        }
+        // Restoring a real session means an async round trip; the splash's
+        // own loader dots are already animating by this point, so a slow
+        // network doesn't read as the app being stuck — it reads as still
+        // loading, which is what's actually happening. No explicit
+        // `withAnimation` needed here: RootView's `.animation(value: appState.phase)`
+        // already animates the transition whichever way this lands.
+        await appState.restoreSessionIfAvailable()
     }
 
     private func sleep(_ seconds: Double) async {

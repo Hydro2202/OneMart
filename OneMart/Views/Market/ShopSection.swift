@@ -232,6 +232,7 @@ struct ProductCard: View {
             .frame(height: 104)
             .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm))
             .overlay(
+                // Real photo swap point: replace with the product's real photo once available.
                 Image(systemName: product.imageName)
                     .font(.system(size: 32, weight: .semibold))
                     .foregroundStyle(AppColor.jade)

@@ -6,3 +6,8 @@ DerivedData/
 .build/
 *.swiftpm
 .DS_Store
+
+## Supabase
+OneMart/Supabase/SupabaseConfig.swift
+supabase/.branches/
+supabase/.temp/

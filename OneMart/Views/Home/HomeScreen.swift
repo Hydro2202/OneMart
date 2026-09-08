@@ -40,7 +40,8 @@ struct HomeScreen: View {
         VStack(spacing: 0) {
             AppShellHeader(
                 title: "\(greeting), \(firstName)!",
-                subtitle: deliveryAddressLine
+                subtitle: deliveryAddressLine,
+                showsNotificationBell: true
             )
 
             ScrollView {
@@ -288,9 +289,7 @@ struct HomeScreen: View {
                     HStack(alignment: .top, spacing: AppSpacing.sm) {
                         ForEach(active.prefix(4)) { order in
                             Button {
-                                if let tab = tab(for: order.module) {
-                                    appState.activeTab = tab
-                                }
+                                appState.activeTab = AppTab.tab(for: order.module)
                             } label: {
                                 activeOrderCard(order)
                             }
@@ -382,6 +381,7 @@ struct HomeScreen: View {
                                     .frame(width: 158, height: 88)
                                     .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm))
 
+                                    // Real photo swap point: replace with the restaurant's real cover photo once available.
                                     Image(systemName: restaurant.imageName)
                                         .font(.system(size: 28, weight: .semibold))
                                         .foregroundStyle(AppColor.coral)
@@ -409,15 +409,6 @@ struct HomeScreen: View {
         }
     }
 
-    /// Which tab a module's orders belong to.
-    private func tab(for module: ServiceModule) -> AppTab? {
-        switch module {
-        case .food: return .food
-        case .rides: return .rides
-        case .logistics: return .logistics
-        case .shop, .community: return .market
-        }
-    }
 }
 
 // MARK: - Home-only presentation data

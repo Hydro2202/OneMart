@@ -79,6 +79,7 @@ struct ProductDetailView: View {
             )
             .frame(height: 248)
 
+            // Real photo swap point: replace with the product's real photo (or photo carousel) once available.
             Image(systemName: product.imageName)
                 .font(.system(size: 92, weight: .semibold))
                 .foregroundStyle(AppColor.jade)
@@ -153,6 +154,7 @@ struct ProductDetailView: View {
 
     private var merchantCard: some View {
         HStack(spacing: AppSpacing.sm) {
+            // Real photo swap point: replace with the merchant's real logo once available.
             Image(systemName: product.merchant.logoName)
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(AppColor.jade)

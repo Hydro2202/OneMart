@@ -20,6 +20,13 @@ struct RestaurantDetailView: View {
     /// Id of the menu item that was just added, so only that row bounces.
     @State private var recentlyAddedItemID: UUID?
 
+    /// Set when `add(_:)` finds the food cart holds items from a *different*
+    /// restaurant — holds everything the confirmation dialog and its actions
+    /// need until the user answers.
+    @State private var showsRestaurantSwitchConfirm = false
+    @State private var pendingItem: MenuItem?
+    @State private var conflictingRestaurantName: String?
+
     private var isFavorite: Bool { appState.isFavoriteRestaurant(restaurant.id) }
 
     private var bestSellers: [MenuItem] {
@@ -86,6 +93,26 @@ struct RestaurantDetailView: View {
         .sheet(isPresented: $showsCart) {
             CartView(kind: .food)
         }
+        .confirmationDialog(
+            "Start a new order?",
+            isPresented: $showsRestaurantSwitchConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Remove Items & Add", role: .destructive) {
+                if let pendingItem {
+                    appState.replaceFoodCart(with: pendingItem, from: restaurant.name)
+                    flashAdded(pendingItem.id)
+                }
+                pendingItem = nil
+                conflictingRestaurantName = nil
+            }
+            Button("Cancel", role: .cancel) {
+                pendingItem = nil
+                conflictingRestaurantName = nil
+            }
+        } message: {
+            Text("Your cart has items from \(conflictingRestaurantName ?? "another restaurant"). Adding from \(restaurant.name) will remove them.")
+        }
         .onAppear {
             // Land on "Popular" when the restaurant has best sellers, otherwise
             // on its first real section so the page is never empty.
@@ -106,6 +133,7 @@ struct RestaurantDetailView: View {
             )
             .frame(height: 168)
 
+            // Real photo swap point: replace with the restaurant's real cover photo once available.
             Image(systemName: restaurant.imageName)
                 .font(.system(size: 64, weight: .semibold))
                 .foregroundStyle(AppColor.onAccent.opacity(0.28))
@@ -297,16 +325,29 @@ struct RestaurantDetailView: View {
         }
     }
 
+    /// Adding a dish from a *different* restaurant than what's already in the
+    /// cart would silently mix two orders together, so this asks first —
+    /// the food cart can only ever hold one restaurant at a time.
     private func add(_ item: MenuItem) {
-        withAnimation(AppMotion.adaptive(AppMotion.springBouncy, reduceMotion: reduceMotion)) {
-            appState.addToFoodCart(item, from: restaurant.name)
-            recentlyAddedItemID = item.id
+        if let conflict = appState.conflictingRestaurantName(for: restaurant.name) {
+            pendingItem = item
+            conflictingRestaurantName = conflict
+            showsRestaurantSwitchConfirm = true
+            return
         }
-        // Clear the "Added" flash after a beat, without cancelling a newer one.
-        let addedID = item.id
+        appState.addToFoodCart(item, from: restaurant.name)
+        flashAdded(item.id)
+    }
+
+    /// Bounces the row and shows the "Added" pill for a beat, without
+    /// cancelling a newer flash if the user taps again quickly.
+    private func flashAdded(_ itemID: UUID) {
+        withAnimation(AppMotion.adaptive(AppMotion.springBouncy, reduceMotion: reduceMotion)) {
+            recentlyAddedItemID = itemID
+        }
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 1_200_000_000)
-            if recentlyAddedItemID == addedID {
+            if recentlyAddedItemID == itemID {
                 withAnimation(AppMotion.easeStandard) { recentlyAddedItemID = nil }
             }
         }
@@ -341,6 +382,7 @@ private struct MenuItemRow: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: AppSpacing.sm) {
+            // Real photo swap point: replace with the dish's real photo once available.
             Image(systemName: item.imageName)
                 .font(.system(size: 24, weight: .semibold))
                 .foregroundStyle(AppColor.coral)

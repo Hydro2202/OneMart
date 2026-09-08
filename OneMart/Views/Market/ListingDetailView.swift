@@ -76,6 +76,7 @@ struct ListingDetailView: View {
             )
             .frame(height: 240)
 
+            // Real photo swap point: replace with the listing's real photo (or photo carousel) once available.
             Image(systemName: listing.imageName)
                 .font(.system(size: 88, weight: .semibold))
                 .foregroundStyle(AppColor.jade)
@@ -153,6 +154,7 @@ struct ListingDetailView: View {
                     Circle()
                         .fill(AppColor.jade.opacity(0.16))
                         .frame(width: 52, height: 52)
+                    // Real photo swap point: replace with the seller's real profile photo once available.
                     Image(systemName: listing.sellerPhotoName)
                         .font(.system(size: 30))
                         .foregroundStyle(AppColor.jade)

@@ -16,6 +16,15 @@ xcodegen generate
 open OneMart.xcodeproj
 ```
 
+**Open `OneMart.xcodeproj` specifically** — not the repo folder, and not a loose
+`.swift` file. Xcode only shows a Run button and a scheme picker once it has an
+actual project to build; opening the folder or a single file gives you a plain
+text editor with no build target, which is why the Run button looks
+missing/greyed out on a fresh clone. `xcodegen generate` also writes a
+*shared* scheme (`OneMart.xcodeproj/xcshareddata/xcschemes/OneMart.xcscheme`,
+per the `schemes:` block in [project.yml](project.yml)), so the scheme and Run
+button are there immediately — no "Manage Schemes" step needed.
+
 Re-run `xcodegen generate` any time files are added/removed on disk (new files
 are picked up automatically since sources are folder-referenced, but it's
 cheap to re-run whenever the target/scheme config changes).

@@ -289,6 +289,7 @@ private struct CartLineRow: View {
 
     var body: some View {
         HStack(spacing: AppSpacing.sm) {
+            // Real photo swap point: replace with the dish/product's real photo once available.
             Image(systemName: item.imageName)
                 .font(.system(size: 20, weight: .semibold))
                 .foregroundStyle(item.module.tintColor)

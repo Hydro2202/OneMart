@@ -89,6 +89,7 @@ struct ListingCard: View {
                 .frame(height: 104)
                 .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm))
                 .overlay(
+                    // Real photo swap point: replace with the listing's real photo once available.
                     Image(systemName: listing.imageName)
                         .font(.system(size: 30, weight: .semibold))
                         .foregroundStyle(AppColor.jade)

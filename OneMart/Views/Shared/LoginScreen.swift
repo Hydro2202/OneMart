@@ -1,11 +1,9 @@
 import SwiftUI
 
-/// Email + password sign-in.
-///
-/// Only the demo credentials succeed (`AppState.logIn` owns that rule), so a
-/// failed attempt shows a real inline error rather than pretending to work.
-/// The social buttons and "Forgot password?" are intentionally visual-only —
-/// there is no backend behind this prototype.
+/// Email + password sign-in against real Supabase Auth (`AppState.logIn`).
+/// A failed attempt surfaces Supabase's actual error message inline. The
+/// social buttons and "Forgot password?" are intentionally visual-only —
+/// no OAuth provider or password-reset flow is wired up yet.
 struct LoginScreen: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -70,8 +68,6 @@ struct LoginScreen: View {
                     divider
 
                     socialButtons
-
-                    InlineBanner(kind: .info, message: "Demo account — user@gmail.com / password123")
 
                     signUpLink
                 }
@@ -194,13 +190,12 @@ struct LoginScreen: View {
 
         isSigningIn = true
         Task { @MainActor in
-            // Brief pause so the button's loading state is legible.
-            try? await Task.sleep(nanoseconds: 600_000_000)
-            let succeeded = appState.logIn(email: trimmedEmail, password: password)
-            isSigningIn = false
-            if !succeeded {
-                authError = "Invalid email or password. Try user@gmail.com / password123"
+            do {
+                try await appState.logIn(email: trimmedEmail, password: password)
+            } catch {
+                authError = error.localizedDescription
             }
+            isSigningIn = false
         }
     }
 }

@@ -1,54 +1,38 @@
 import Foundation
 
-/// The single demo account the prototype signs in with.
+/// A fixture profile for SwiftUI Previews and `AppState.previewSignedIn`
+/// only — real sign-in/sign-up now goes through `AuthRepository` against
+/// Supabase Auth, not this file. Kept around purely so canvas previews don't
+/// need network access (or a live project) just to render a signed-in state.
 ///
-/// Note on image fields across all MockData: no photo assets ship with this
-/// prototype (only `OneMartLogo`), so every `*ImageName` / `*PhotoName` /
-/// `logoName` string holds an **SF Symbol** name and views render it with
-/// `Image(systemName:)`.
+/// Note on image fields across all MockData: `photoName`/`*ImageName` values
+/// are SF Symbol names, used as a placeholder fallback wherever a real photo
+/// (from Supabase Storage, once catalog data is seeded) isn't available yet.
 enum MockUser {
-    static let demoEmail = "user@gmail.com"
-    static let demoPassword = "password123"
-
-    static let savedAddresses: [SavedAddress] = [
-        SavedAddress(
-            label: "Home",
-            fullAddress: "123 Mabini St, Malate, Manila 1004",
-            icon: "house.fill",
-            isDefault: true
-        ),
-        SavedAddress(
-            label: "Work",
-            fullAddress: "27F Ayala North Exchange, Ayala Ave, Makati CBD",
-            icon: "briefcase.fill"
-        ),
-        SavedAddress(
-            label: "Parents",
-            fullAddress: "45 Sampaguita Rd, Project 6, Quezon City",
-            icon: "person.2.fill"
-        )
-    ]
-
     static let demo = UserProfile(
         name: "Maria Santos",
         photoName: "person.crop.circle.fill",
         phone: "+63 917 123 4567",
-        email: demoEmail,
+        email: "maria.santos@example.com",
         walletBalance: MockWallet.seedBalance,
         memberSince: MockDate.monthsAgo(18),
-        savedAddresses: savedAddresses
+        savedAddresses: [
+            SavedAddress(
+                label: "Home",
+                fullAddress: "123 Mabini St, Malate, Manila 1004",
+                icon: "house.fill",
+                isDefault: true
+            ),
+            SavedAddress(
+                label: "Work",
+                fullAddress: "27F Ayala North Exchange, Ayala Ave, Makati CBD",
+                icon: "briefcase.fill"
+            ),
+            SavedAddress(
+                label: "Parents",
+                fullAddress: "45 Sampaguita Rd, Project 6, Quezon City",
+                icon: "person.2.fill"
+            )
+        ]
     )
-
-    /// Builds a profile for someone who just completed the Sign Up form.
-    static func newAccount(name: String, email: String, phone: String) -> UserProfile {
-        UserProfile(
-            name: name,
-            photoName: "person.crop.circle.fill",
-            phone: phone,
-            email: email,
-            walletBalance: MockWallet.seedBalance,
-            memberSince: Date(),
-            savedAddresses: []
-        )
-    }
 }

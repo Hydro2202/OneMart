@@ -178,6 +178,7 @@ struct RestaurantCard: View {
             .frame(height: 118)
             .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm))
             .overlay(
+                // Real photo swap point: replace with the restaurant's real cover photo once available.
                 Image(systemName: restaurant.imageName)
                     .font(.system(size: 40, weight: .semibold))
                     .foregroundStyle(AppColor.coral)
@@ -231,6 +232,7 @@ private struct PromotedRestaurantCard: View {
                 .frame(width: 200, height: 92)
                 .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm))
 
+                // Real photo swap point: replace with the restaurant's real cover photo once available.
                 Image(systemName: restaurant.imageName)
                     .font(.system(size: 30, weight: .semibold))
                     .foregroundStyle(AppColor.onAccent.opacity(0.9))

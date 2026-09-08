@@ -15,6 +15,10 @@ struct PaymentMethodPicker: View {
 
     @Binding var selection: PaymentMethod
     let amountDue: Double
+    /// Display label for `.cashOnDelivery` on this screen. Every checkout
+    /// says "Cash on Delivery" except Rides, which — there being no delivery
+    /// to speak of on a ride — says just "Cash".
+    var cashOnDeliveryLabel: String = PaymentMethod.cashOnDelivery.rawValue
     /// Invoked when the user taps "Top Up" on the insufficient-balance warning.
     /// Defaults to deep-linking Profile's wallet section — pass your own when
     /// the picker sits inside a sheet, so the sheet can be dismissed first.
@@ -59,7 +63,7 @@ struct PaymentMethodPicker: View {
                     )
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(method.rawValue)
+                    Text(method == .cashOnDelivery ? cashOnDeliveryLabel : method.rawValue)
                         .appTextStyle(AppTextStyle.bodyEmphasis)
                     Text(subtitle(for: method))
                         .appTextStyle(AppTextStyle.caption, color: subtitleColor(for: method))

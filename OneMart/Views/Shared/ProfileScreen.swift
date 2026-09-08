@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Full-screen profile overlay presented over the tab shell (matching the
 /// prototype's `showProfile` behaviour), with a close button rather than a tab.
@@ -16,6 +17,10 @@ struct ProfileScreen: View {
         case orders
         case favorites
         case addresses
+        case editProfile
+        case notifications
+        case privacy
+        case help
     }
 
     @State private var path: [Route] = []
@@ -57,6 +62,10 @@ struct ProfileScreen: View {
                 case .orders: OrderHistoryView()
                 case .favorites: FavoritesView()
                 case .addresses: SavedAddressesView()
+                case .editProfile: EditProfileView()
+                case .notifications: NotificationSettingsView()
+                case .privacy: PrivacySecurityView()
+                case .help: HelpSupportView()
                 }
             }
         }
@@ -69,7 +78,9 @@ struct ProfileScreen: View {
             WalletTopUpView()
         }
         .confirmationDialog("Log out?", isPresented: $showsLogoutConfirmation, titleVisibility: .visible) {
-            Button("Log Out", role: .destructive) { appState.logOut() }
+            Button("Log Out", role: .destructive) {
+                Task { await appState.logOut() }
+            }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("You'll need to sign in again to access your account.")
@@ -81,18 +92,26 @@ struct ProfileScreen: View {
     private var identityHeader: some View {
         VStack(spacing: AppSpacing.xs) {
             ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [AppColor.coral, AppColor.amber],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+                if let photoData = user?.photoData, let uiImage = UIImage(data: photoData) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 88, height: 88)
+                        .clipShape(Circle())
+                } else {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [AppColor.coral, AppColor.amber],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
                         )
-                    )
-                    .frame(width: 88, height: 88)
-                Text(initials)
-                    .font(AppFont.rounded(30, weight: .bold))
-                    .foregroundStyle(AppColor.onAccent)
+                        .frame(width: 88, height: 88)
+                    Text(initials)
+                        .font(AppFont.rounded(30, weight: .bold))
+                        .foregroundStyle(AppColor.onAccent)
+                }
             }
             .appShadow(.card)
 
@@ -168,6 +187,13 @@ struct ProfileScreen: View {
     private var menuList: some View {
         VStack(spacing: AppSpacing.xs) {
             menuRow(
+                icon: "person.crop.circle.fill",
+                tint: AppColor.coral,
+                title: "Edit Profile",
+                subtitle: "Photo, name, phone, email"
+            ) { path.append(.editProfile) }
+
+            menuRow(
                 icon: "wallet.pass.fill",
                 tint: AppColor.coral,
                 title: "Wallet & Top Up",
@@ -178,7 +204,7 @@ struct ProfileScreen: View {
                 icon: "shippingbox.fill",
                 tint: AppColor.amber,
                 title: "Order History",
-                subtitle: "\(MockOrders.all.count) orders across all services"
+                subtitle: "\(appState.activityFeed.count) orders across all services"
             ) { path.append(.orders) }
 
             menuRow(
@@ -200,21 +226,21 @@ struct ProfileScreen: View {
                 tint: AppColor.amber,
                 title: "Notifications",
                 subtitle: "Manage alerts"
-            ) {}
+            ) { path.append(.notifications) }
 
             menuRow(
                 icon: "lock.shield.fill",
                 tint: AppColor.jade,
                 title: "Privacy & Security",
                 subtitle: "Change password, 2FA"
-            ) {}
+            ) { path.append(.privacy) }
 
             menuRow(
                 icon: "questionmark.circle.fill",
                 tint: AppColor.textSecondary,
                 title: "Help & Support",
                 subtitle: "FAQs, chat support"
-            ) {}
+            ) { path.append(.help) }
         }
     }
 
@@ -394,18 +420,61 @@ struct WalletTransactionRow: View {
 // MARK: - Order history
 
 private struct OrderHistoryView: View {
+    @EnvironmentObject private var appState: AppState
+    @State private var filter: ServiceModule?
+
+    /// This session's own orders (a ride just booked, a parcel just sent)
+    /// merged with the seeded history — same source Home's activity feed
+    /// uses, so an order placed on one screen reliably shows up on the other.
+    private var orders: [Order] {
+        appState.activityFeed.filter { filter == nil || $0.module == filter }
+    }
+
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: AppSpacing.xs) {
-                ForEach(MockOrders.recent) { order in
-                    OrderRow(order: order)
+            VStack(alignment: .leading, spacing: AppSpacing.sm) {
+                filterRow
+
+                if orders.isEmpty {
+                    EmptyResultsView(
+                        icon: "shippingbox",
+                        title: "No orders here",
+                        message: "You don't have any \(filterLabel(filter).lowercased()) orders yet."
+                    )
+                } else {
+                    LazyVStack(spacing: AppSpacing.xs) {
+                        ForEach(orders) { order in
+                            OrderRow(order: order)
+                        }
+                    }
+                    .padding(.horizontal, AppSpacing.md)
                 }
             }
-            .padding(AppSpacing.md)
+            .padding(.vertical, AppSpacing.md)
         }
         .background(AppColor.backgroundPrimary.ignoresSafeArea())
         .navigationTitle("Order History")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var filterRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: AppSpacing.xs) {
+                FilterChip(title: "All", isSelected: filter == nil) { filter = nil }
+                ForEach(ServiceModule.allCases) { module in
+                    FilterChip(title: filterLabel(module), isSelected: filter == module) { filter = module }
+                }
+            }
+            .padding(.horizontal, AppSpacing.md)
+            .padding(.vertical, 2)
+        }
+    }
+
+    /// "Send" for `.logistics` to match the tab bar; every other module's
+    /// own `shortName` otherwise. `nil` means "All".
+    private func filterLabel(_ module: ServiceModule?) -> String {
+        guard let module else { return "All" }
+        return module == .logistics ? "Send" : module.shortName
     }
 }
 
@@ -600,6 +669,10 @@ private struct FavoritesView: View {
 private struct SavedAddressesView: View {
     @EnvironmentObject private var appState: AppState
 
+    @State private var editingAddress: SavedAddress?
+    @State private var showsAddSheet = false
+    @State private var pendingDeleteID: UUID?
+
     private var addresses: [SavedAddress] {
         appState.currentUser?.savedAddresses ?? []
     }
@@ -608,42 +681,15 @@ private struct SavedAddressesView: View {
         ScrollView {
             VStack(spacing: AppSpacing.xs) {
                 if addresses.isEmpty {
-                    Text("No saved addresses yet.")
-                        .appTextStyle(AppTextStyle.callout, color: AppColor.textSecondary)
-                        .padding(.top, AppSpacing.xxl)
+                    EmptyResultsView(
+                        icon: "mappin.slash",
+                        title: "No saved addresses yet",
+                        message: "Add your home, work, or any place you order to often."
+                    )
                 }
 
                 ForEach(addresses) { address in
-                    HStack(alignment: .top, spacing: AppSpacing.sm) {
-                        Image(systemName: address.icon)
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(AppColor.jade)
-                            .frame(width: 38, height: 38)
-                            .background(AppColor.jade.opacity(0.14), in: RoundedRectangle(cornerRadius: AppRadius.sm))
-
-                        VStack(alignment: .leading, spacing: 3) {
-                            HStack(spacing: AppSpacing.xxs) {
-                                Text(address.label)
-                                    .appTextStyle(AppTextStyle.bodyEmphasis)
-                                if address.isDefault {
-                                    Text("Default")
-                                        .font(AppTextStyle.caption2)
-                                        .foregroundStyle(AppColor.jade)
-                                        .padding(.horizontal, AppSpacing.xxs)
-                                        .padding(.vertical, 2)
-                                        .background(AppColor.jade.opacity(0.14), in: Capsule())
-                                }
-                            }
-                            Text(address.fullAddress)
-                                .appTextStyle(AppTextStyle.caption, color: AppColor.textSecondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-
-                        Spacer(minLength: 0)
-                    }
-                    .padding(AppSpacing.sm)
-                    .background(AppColor.backgroundSecondary, in: RoundedRectangle(cornerRadius: AppRadius.md))
-                    .appShadow(.subtle)
+                    addressRow(address)
                 }
             }
             .padding(AppSpacing.md)
@@ -651,6 +697,104 @@ private struct SavedAddressesView: View {
         .background(AppColor.backgroundPrimary.ignoresSafeArea())
         .navigationTitle("Saved Addresses")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    showsAddSheet = true
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(AppColor.coral)
+                }
+                .accessibilityLabel("Add address")
+            }
+        }
+        .sheet(isPresented: $showsAddSheet) {
+            SavedAddressFormView(existingAddress: nil) { address in
+                appState.addAddress(address)
+            }
+        }
+        .sheet(item: $editingAddress) { address in
+            SavedAddressFormView(existingAddress: address) { updated in
+                appState.updateAddress(updated)
+            }
+        }
+        .confirmationDialog(
+            "Delete this address?",
+            isPresented: Binding(
+                get: { pendingDeleteID != nil },
+                set: { if !$0 { pendingDeleteID = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                if let pendingDeleteID {
+                    appState.deleteAddress(pendingDeleteID)
+                }
+                pendingDeleteID = nil
+            }
+            Button("Cancel", role: .cancel) { pendingDeleteID = nil }
+        }
+    }
+
+    private func addressRow(_ address: SavedAddress) -> some View {
+        HStack(alignment: .top, spacing: AppSpacing.sm) {
+            Image(systemName: address.icon)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(AppColor.jade)
+                .frame(width: 38, height: 38)
+                .background(AppColor.jade.opacity(0.14), in: RoundedRectangle(cornerRadius: AppRadius.sm))
+
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: AppSpacing.xxs) {
+                    Text(address.label)
+                        .appTextStyle(AppTextStyle.bodyEmphasis)
+                    if address.isDefault {
+                        Text("Default")
+                            .font(AppTextStyle.caption2)
+                            .foregroundStyle(AppColor.jade)
+                            .padding(.horizontal, AppSpacing.xxs)
+                            .padding(.vertical, 2)
+                            .background(AppColor.jade.opacity(0.14), in: Capsule())
+                    }
+                }
+                Text(address.fullAddress)
+                    .appTextStyle(AppTextStyle.caption, color: AppColor.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+
+            Menu {
+                Button {
+                    editingAddress = address
+                } label: {
+                    Label("Edit", systemImage: "pencil")
+                }
+                if !address.isDefault {
+                    Button {
+                        appState.setDefaultAddress(address.id)
+                    } label: {
+                        Label("Set as Default", systemImage: "checkmark.seal")
+                    }
+                }
+                Button(role: .destructive) {
+                    pendingDeleteID = address.id
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(AppColor.textTertiary)
+                    .frame(width: 32, height: 32)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel("More options for \(address.label)")
+        }
+        .padding(AppSpacing.sm)
+        .background(AppColor.backgroundSecondary, in: RoundedRectangle(cornerRadius: AppRadius.md))
+        .appShadow(.subtle)
     }
 }
 
