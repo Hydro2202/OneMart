@@ -24,6 +24,10 @@ enum AuthRepository {
     // MARK: - Sign up / in / out
 
     static func signUp(name: String, email: String, phone: String, password: String) async throws -> SignUpOutcome {
+        guard SupabaseConfig.isConfigured else {
+            try LocalAuthStore.signUp(name: name, email: email, phone: phone, password: password)
+            return .signedIn
+        }
         let response = try await SupabaseManager.client.auth.signUp(
             email: email,
             password: password,
@@ -36,17 +40,28 @@ enum AuthRepository {
     }
 
     static func signIn(email: String, password: String) async throws {
+        guard SupabaseConfig.isConfigured else {
+            try LocalAuthStore.signIn(email: email, password: password)
+            return
+        }
         try await SupabaseManager.client.auth.signIn(email: email, password: password)
     }
 
     static func signOut() async throws {
+        guard SupabaseConfig.isConfigured else {
+            LocalAuthStore.signOut()
+            return
+        }
         try await SupabaseManager.client.auth.signOut()
     }
 
     /// Whether a still-valid session already exists — checked once at launch
     /// (from `SplashScreen`) so a returning user skips straight past Login.
     static func hasValidSession() async -> Bool {
-        (try? await SupabaseManager.client.auth.session) != nil
+        guard SupabaseConfig.isConfigured else {
+            return LocalAuthStore.hasValidSession()
+        }
+        return (try? await SupabaseManager.client.auth.session) != nil
     }
 
     // MARK: - Profile
@@ -57,27 +72,48 @@ enum AuthRepository {
     /// `on_auth_user_created` trigger creates it synchronously on sign-up, so
     /// this should only fail if the migration wasn't applied).
     static func fetchCurrentProfile() async throws -> UserProfile {
+        guard SupabaseConfig.isConfigured else {
+            return try LocalAuthStore.currentProfile()
+        }
+        // The `on_auth_user_created` trigger usually writes the row in the
+        // same request, but a brand-new user can still lose a race — retry
+        // briefly before giving up.
         let session = try await SupabaseManager.client.auth.session
         let userID = session.user.id
 
-        async let profileTask: ProfileRow = SupabaseManager.client
-            .from("profiles")
-            .select()
-            .eq("id", value: userID)
-            .single()
-            .execute()
-            .value
+        var lastError: Error?
+        var profile: ProfileRow?
+        var addresses: [SavedAddressRow] = []
+        for attempt in 0..<6 {
+            do {
+                async let profileTask: ProfileRow = SupabaseManager.client
+                    .from("profiles")
+                    .select()
+                    .eq("id", value: userID)
+                    .single()
+                    .execute()
+                    .value
 
-        async let addressesTask: [SavedAddressRow] = SupabaseManager.client
-            .from("saved_addresses")
-            .select()
-            .eq("user_id", value: userID)
-            .order("created_at")
-            .execute()
-            .value
+                async let addressesTask: [SavedAddressRow] = SupabaseManager.client
+                    .from("saved_addresses")
+                    .select()
+                    .eq("user_id", value: userID)
+                    .order("created_at")
+                    .execute()
+                    .value
 
-        var profile = try await profileTask
-        let addresses = try await addressesTask
+                profile = try await profileTask
+                addresses = try await addressesTask
+                lastError = nil
+                break
+            } catch {
+                lastError = error
+                if attempt < 5 {
+                    try await Task.sleep(nanoseconds: 400_000_000)
+                }
+            }
+        }
+        guard var profile else { throw lastError! }
 
         // `profiles` has no `email` column (Supabase Auth already owns that,
         // in `auth.users`) — stitch it in from the session instead of

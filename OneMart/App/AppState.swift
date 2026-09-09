@@ -160,12 +160,12 @@ final class AppState: ObservableObject {
 
     // MARK: Wallet
 
-    @Published private(set) var walletBalance: Double = MockWallet.seedBalance
-    @Published private(set) var walletTransactions: [WalletTransaction] = MockWallet.transactions
+    @Published private(set) var walletBalance: Double = 0
+    @Published private(set) var walletTransactions: [WalletTransaction] = []
 
     // MARK: Messaging
 
-    @Published var messageThreads: [MessageThread] = MockMessages.threads
+    @Published var messageThreads: [MessageThread] = []
 
     // MARK: Community listings
     //
@@ -489,7 +489,7 @@ final class AppState: ObservableObject {
 
     // MARK: - Notifications
 
-    @Published private(set) var notifications: [AppNotification] = MockNotifications.all
+    @Published private(set) var notifications: [AppNotification] = []
     @Published var notificationPreferences = NotificationPreferences()
 
     var unreadNotificationCount: Int {
@@ -535,11 +535,15 @@ final class AppState: ObservableObject {
     /// booking) so it shows up in Home's activity feed.
     func recordOrder(_ order: Order) {
         placedOrders.insert(order, at: 0)
+        guard SupabaseConfig.isConfigured else { return }
+        Task {
+            try? await OrderRepository.insert(order)
+        }
     }
 
-    /// This session's orders merged with the seeded history, newest first.
+    /// This account's own orders only — a fresh signup has an empty feed.
     var activityFeed: [Order] {
-        (placedOrders + MockOrders.all).sorted { $0.placedAt > $1.placedAt }
+        placedOrders.sorted { $0.placedAt > $1.placedAt }
     }
 
     /// Still-running orders across every module — Home's "track this" strip.
@@ -586,6 +590,7 @@ final class AppState: ObservableObject {
             ),
             at: 0
         )
+        persistWalletPayment(amount: amount, title: title, subtitle: subtitle, module: module)
         return true
     }
 
@@ -634,6 +639,7 @@ final class AppState: ObservableObject {
             ),
             at: 0
         )
+        persistWalletTopUp(amount: amount, methodLabel: methodLabel, ledgerMethod: ledgerMethod)
     }
 
     /// Opens Profile directly on the Wallet section (used by Home's wallet card
@@ -739,7 +745,7 @@ final class AppState: ObservableObject {
     func logIn(email: String, password: String) async throws {
         let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
         try await AuthRepository.signIn(email: trimmedEmail, password: password)
-        currentUser = try await AuthRepository.fetchCurrentProfile()
+        try await loadAuthenticatedUser()
         activeTab = .home
         phase = .main
     }
@@ -768,7 +774,7 @@ final class AppState: ObservableObject {
 
         let outcome = try await AuthRepository.signUp(name: trimmedName, email: trimmedEmail, phone: trimmedPhone, password: password)
         if outcome == .signedIn {
-            currentUser = try await AuthRepository.fetchCurrentProfile()
+            try await loadAuthenticatedUser()
         }
         return outcome
     }
@@ -789,7 +795,7 @@ final class AppState: ObservableObject {
             return
         }
         do {
-            currentUser = try await AuthRepository.fetchCurrentProfile()
+            try await loadAuthenticatedUser()
             phase = .main
         } catch {
             // Session existed but the profile fetch failed (migration not
@@ -807,18 +813,65 @@ final class AppState: ObservableObject {
         activeTab = .home
         showProfile = false
         profileInitialSection = .main
+        resetPersonalData(keepingCatalog: true)
+        notificationPreferences = NotificationPreferences()
+    }
+
+    /// Catalog (food, shop, rides, send, community listings) stays mocked /
+    /// browsable. Everything that belongs to *this user* starts empty.
+    private func resetPersonalData(keepingCatalog: Bool) {
         foodCart.removeAll()
         shopCart.removeAll()
         favoriteRestaurantIDs.removeAll()
         favoriteProductIDs.removeAll()
         favoriteListingIDs.removeAll()
-        walletBalance = MockWallet.seedBalance
-        walletTransactions = MockWallet.transactions
-        messageThreads = MockMessages.threads
-        communityListings = MockListings.all
+        walletBalance = 0
+        walletTransactions = []
+        messageThreads = []
         placedOrders.removeAll()
-        notifications = MockNotifications.all
-        notificationPreferences = NotificationPreferences()
+        notifications = []
+        if !keepingCatalog {
+            communityListings = MockListings.all
+        }
+    }
+
+    private func loadAuthenticatedUser() async throws {
+        let user = try await AuthRepository.fetchCurrentProfile()
+        currentUser = user
+        resetPersonalData(keepingCatalog: true)
+        communityListings = MockListings.all
+        walletBalance = user.walletBalance
+
+        guard SupabaseConfig.isConfigured else { return }
+        if let transactions = try? await WalletRepository.fetchTransactions() {
+            walletTransactions = transactions
+        }
+        if let orders = try? await OrderRepository.fetchOrders() {
+            placedOrders = orders
+        }
+    }
+
+    private func persistWalletPayment(amount: Double, title: String, subtitle: String, module: ServiceModule?) {
+        guard SupabaseConfig.isConfigured else { return }
+        Task {
+            _ = try? await WalletRepository.pay(
+                amount: amount,
+                title: title,
+                subtitle: subtitle,
+                module: module
+            )
+        }
+    }
+
+    private func persistWalletTopUp(amount: Double, methodLabel: String, ledgerMethod: PaymentMethod) {
+        guard SupabaseConfig.isConfigured else { return }
+        Task {
+            try? await WalletRepository.topUp(
+                amount: amount,
+                paymentMethod: ledgerMethod.rawValue,
+                methodLabel: methodLabel
+            )
+        }
     }
 
     // MARK: - Validation helpers
@@ -856,6 +909,10 @@ extension AppState {
     static var previewSignedIn: AppState {
         let state = AppState()
         state.currentUser = MockUser.demo
+        state.walletBalance = MockWallet.seedBalance
+        state.walletTransactions = MockWallet.transactions
+        state.messageThreads = MockMessages.threads
+        state.notifications = MockNotifications.all
         state.activeTab = .home
         state.phase = .main
         if let restaurant = MockRestaurants.all.first,

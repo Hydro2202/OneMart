@@ -25,6 +25,8 @@ targets:
     deploymentTarget: "16.0"
     sources:
       - path: OneMart
+        excludes:
+          - "**/SupabaseConfig.example.swift"
     dependencies:
       - package: Supabase
         product: Supabase

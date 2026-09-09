@@ -11,4 +11,14 @@ import Foundation
 enum SupabaseConfig {
     static let url = URL(string: "https://YOUR-PROJECT-REF.supabase.co")!
     static let anonKey = "YOUR-ANON-PUBLIC-KEY"
+
+    /// False on a fresh clone until this file (or a gitignored copy) has a
+    /// real project URL. Auth then uses `LocalAuthStore` instead of DNS-failing
+    /// against the placeholder hostname.
+    static var isConfigured: Bool {
+        guard let host = url.host, !host.isEmpty else { return false }
+        return !host.contains("YOUR-PROJECT-REF")
+            && anonKey != "YOUR-ANON-PUBLIC-KEY"
+            && !anonKey.isEmpty
+    }
 }
