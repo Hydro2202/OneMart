@@ -28,8 +28,6 @@ struct WalletTopUpView: View {
     @State private var method: TopUpMethod = .gcash
 
     // Form fields (mock — nothing is validated against a real processor).
-    @State private var bankName = ""
-    @State private var bankAccount = ""
     @State private var cardNumber = ""
     @State private var cardExpiry = ""
     @State private var cardCVV = ""
@@ -195,14 +193,18 @@ struct WalletTopUpView: View {
             method = option
         } label: {
             HStack(spacing: AppSpacing.sm) {
-                Image(systemName: option.icon)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(isSelected ? AppColor.onAccent : AppColor.textSecondary)
-                    .frame(width: 38, height: 38)
-                    .background(
-                        isSelected ? AppColor.onAccent.opacity(0.2) : AppColor.backgroundTertiary,
-                        in: RoundedRectangle(cornerRadius: AppRadius.sm)
-                    )
+                if option == .gcash {
+                    GCashBadge(isSelected: isSelected)
+                } else {
+                    Image(systemName: option.icon)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(isSelected ? AppColor.onAccent : AppColor.textSecondary)
+                        .frame(width: 38, height: 38)
+                        .background(
+                            isSelected ? AppColor.onAccent.opacity(0.2) : AppColor.backgroundTertiary,
+                            in: RoundedRectangle(cornerRadius: AppRadius.sm)
+                        )
+                }
 
                 Text(option.displayName)
                     .font(AppTextStyle.bodyEmphasis)
@@ -279,23 +281,54 @@ struct WalletTopUpView: View {
         .frame(maxWidth: .infinity)
     }
 
+    /// Bank transfer is a cash-in, so instead of asking the user for *their*
+    /// account we show OneMart's receiving account (mirrors `qrPane`).
     private var bankForm: some View {
         VStack(spacing: AppSpacing.sm) {
-            AppTextField(
-                label: "Bank",
-                placeholder: "BDO, BPI, UnionBank…",
-                text: $bankName,
-                icon: "building.columns.fill",
-                autocapitalization: .words
-            )
-            AppTextField(
-                label: "Account Number",
-                placeholder: "1234 5678 9012",
-                text: $bankAccount,
-                icon: "number",
-                keyboardType: .numberPad
-            )
+            QRPlaceholder()
+                .frame(width: 200, height: 200)
+                .padding(AppSpacing.md)
+                .background(AppColor.backgroundSecondary, in: RoundedRectangle(cornerRadius: AppRadius.lg))
+                .overlay(
+                    RoundedRectangle(cornerRadius: AppRadius.lg)
+                        .stroke(AppColor.borderSubtle, style: StrokeStyle(lineWidth: 2, dash: [6, 5]))
+                )
+
+            Text("Transfer to the account below, then confirm")
+                .appTextStyle(AppTextStyle.footnote, color: AppColor.textSecondary)
+
+            VStack(spacing: AppSpacing.xs) {
+                bankDetailRow(label: "Bank", value: Self.receivingBank)
+                bankDetailRow(label: "Account Name", value: Self.receivingAccountName)
+                bankDetailRow(label: "Account Number", value: Self.receivingAccountNumber)
+            }
+            .padding(AppSpacing.md)
+            .background(AppColor.backgroundSecondary, in: RoundedRectangle(cornerRadius: AppRadius.md))
+            .appShadow(.subtle)
+
+            Text("Sample account — this prototype does not process real payments.")
+                .appTextStyle(AppTextStyle.caption2, color: AppColor.textTertiary)
         }
+        .frame(maxWidth: .infinity)
+    }
+
+    // OneMart's (mock) receiving account for bank-transfer top-ups.
+    private static let receivingBank = "BDO Unibank"
+    private static let receivingAccountName = "OneMart Technologies Inc."
+    private static let receivingAccountNumber = "0012 3456 7890"
+
+    private func bankDetailRow(label: String, value: String) -> some View {
+        HStack {
+            Text(label)
+                .appTextStyle(AppTextStyle.footnote, color: AppColor.textSecondary)
+            Spacer(minLength: AppSpacing.xs)
+            Text(value)
+                .font(AppTextStyle.bodyEmphasis)
+                .foregroundStyle(AppColor.textPrimary)
+                .multilineTextAlignment(.trailing)
+                .textSelection(.enabled)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private var cardForm: some View {
@@ -392,6 +425,31 @@ struct WalletTopUpView: View {
         withAnimation(AppMotion.adaptive(AppMotion.springBouncy, reduceMotion: reduceMotion)) {
             step = .success
         }
+    }
+}
+
+// Hand-drawn stand-in for the real GCash logo (no brand asset could be fetched in this environment); swapping in `Image("GCashLogo")` from Assets.xcassets later is a trivial follow-up.
+private struct GCashBadge: View {
+    var isSelected: Bool
+
+    /// GCash brand blue (#007DFE).
+    private static let brandBlue = Color(red: 0.0, green: 125.0 / 255.0, blue: 254.0 / 255.0)
+
+    var body: some View {
+        Text("GCash")
+            .font(AppFont.rounded(10, weight: .heavy))
+            .tracking(-0.3)
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
+            .foregroundStyle(Color.white)
+            .padding(.horizontal, 2)
+            .frame(width: 38, height: 38)
+            .background(Self.brandBlue, in: RoundedRectangle(cornerRadius: AppRadius.sm))
+            .overlay(
+                RoundedRectangle(cornerRadius: AppRadius.sm)
+                    .stroke(Color.white.opacity(isSelected ? 0.9 : 0), lineWidth: 1.5)
+            )
+            .accessibilityHidden(true)
     }
 }
 

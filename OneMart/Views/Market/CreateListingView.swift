@@ -1,4 +1,6 @@
 import SwiftUI
+import PhotosUI
+import UIKit
 
 /// The Sell flow, presented as a **`.fullScreenCover`** from the Community
 /// tab's floating button.
@@ -21,6 +23,8 @@ struct CreateListingView: View {
     @State private var descriptionText = ""
     @State private var isDeliveryAvailable = true
     @State private var didPost = false
+    @State private var photoData: Data?
+    @State private var pickerItem: PhotosPickerItem?
 
     /// Categories a seller can actually choose (`.all` is a filter, not a home
     /// for a listing).
@@ -65,6 +69,16 @@ struct CreateListingView: View {
                             .foregroundStyle(AppColor.textSecondary)
                     }
                     .accessibilityLabel("Close")
+                }
+            }
+            .onChange(of: pickerItem) { newItem in
+                // iOS 16 target: the single-parameter `onChange(of:perform:)`
+                // overload, not the two-parameter one added in iOS 17.
+                guard let newItem else { return }
+                Task {
+                    if let data = try? await newItem.loadTransferable(type: Data.self) {
+                        await MainActor.run { photoData = data }
+                    }
                 }
             }
         }
@@ -158,26 +172,56 @@ struct CreateListingView: View {
         .scrollDismissesKeyboard(.interactively)
     }
 
-    // Real photo picker goes here: replace this placeholder with a PhotosPicker
-    // (see EditProfileView.swift for the pattern) once sellers can attach real photos.
+    /// Real `PhotosPicker` — opens the system photo library and loads the
+    /// picked image straight into `photoData`, same pattern as
+    /// `EditProfileView`. One photo (the cover), not the eight the old
+    /// placeholder copy promised; a real multi-photo carousel is a good next
+    /// step once this one works end to end.
     private var photoPlaceholder: some View {
-        VStack(spacing: AppSpacing.xs) {
-            Image(systemName: "photo.on.rectangle.angled")
-                .font(.system(size: 32, weight: .regular))
-                .foregroundStyle(AppColor.jade)
-            Text("Tap to add photos")
-                .appTextStyle(AppTextStyle.subheadline, color: AppColor.textSecondary)
-            Text("Up to 8 photos · the first one is your cover")
-                .appTextStyle(AppTextStyle.caption, color: AppColor.textTertiary)
+        PhotosPicker(selection: $pickerItem, matching: .images) {
+            photoPickerContent
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: 148)
-        .background(AppColor.jade.opacity(0.08), in: RoundedRectangle(cornerRadius: AppRadius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: AppRadius.md)
-                .strokeBorder(AppColor.jade.opacity(0.4), style: StrokeStyle(lineWidth: 1.5, dash: [6, 5]))
-        )
-        .accessibilityLabel("Add photos. Photo picking is not wired up in this prototype.")
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private var photoPickerContent: some View {
+        if let photoData, let uiImage = UIImage(data: photoData) {
+            ZStack(alignment: .bottomTrailing) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 180)
+                    .clipShape(RoundedRectangle(cornerRadius: AppRadius.md))
+
+                Label("Change", systemImage: "photo.on.rectangle")
+                    .font(AppTextStyle.caption)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, AppSpacing.xs)
+                    .padding(.vertical, 6)
+                    .background(.black.opacity(0.55), in: Capsule())
+                    .padding(AppSpacing.xs)
+            }
+        } else {
+            VStack(spacing: AppSpacing.xs) {
+                Image(systemName: "photo.on.rectangle.angled")
+                    .font(.system(size: 32, weight: .regular))
+                    .foregroundStyle(AppColor.jade)
+                Text("Tap to add a photo")
+                    .appTextStyle(AppTextStyle.subheadline, color: AppColor.textSecondary)
+                Text("This becomes your listing's cover photo")
+                    .appTextStyle(AppTextStyle.caption, color: AppColor.textTertiary)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 148)
+            .background(AppColor.jade.opacity(0.08), in: RoundedRectangle(cornerRadius: AppRadius.md))
+            .overlay(
+                RoundedRectangle(cornerRadius: AppRadius.md)
+                    .strokeBorder(AppColor.jade.opacity(0.4), style: StrokeStyle(lineWidth: 1.5, dash: [6, 5]))
+            )
+            .accessibilityLabel("Add a cover photo")
+        }
     }
 
     private var priceSection: some View {
@@ -322,6 +366,7 @@ struct CreateListingView: View {
         let listing = MarketplaceListing(
             title: trimmedTitle,
             imageName: category.icon,
+            photoData: photoData,
             price: price,
             isFree: isFree,
             condition: condition,
@@ -329,6 +374,7 @@ struct CreateListingView: View {
             locationName: locationName.trimmingCharacters(in: .whitespacesAndNewlines),
             distanceKm: 0,
             postedAt: Date(),
+            sellerID: seller?.id ?? UUID(),
             sellerName: seller?.name ?? "You",
             sellerPhotoName: seller?.photoName ?? "person.crop.circle.fill",
             sellerRating: 5.0,

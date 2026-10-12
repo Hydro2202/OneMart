@@ -49,6 +49,8 @@ struct RidesScreen: View {
         VStack(spacing: 0) {
             AppShellHeader(title: "Rides", subtitle: "Moto and car, booked in seconds")
 
+            ActiveOrderBanner(module: .rides, bottomPadding: AppSpacing.xs)
+
             ScrollView {
                 VStack(alignment: .leading, spacing: AppSpacing.md) {
                     RideMapView(isMoving: bookedRide == nil)

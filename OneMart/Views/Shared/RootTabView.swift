@@ -145,13 +145,20 @@ struct ActiveOrderBar: View {
     @EnvironmentObject private var appState: AppState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isPulsing = false
+    @State private var trackingOrder: Order?
 
     private var activeOrders: [Order] { appState.activeOrders }
 
     var body: some View {
         if let order = activeOrders.first {
             Button {
-                appState.activeTab = AppTab.tab(for: order.module)
+                // Parcels already have their own full tracking timeline on the
+                // Send tab; everything else opens the tracking sheet directly.
+                if order.module == .logistics {
+                    appState.activeTab = AppTab.tab(for: order.module)
+                } else {
+                    trackingOrder = order
+                }
             } label: {
                 HStack(spacing: AppSpacing.xs) {
                     ZStack {
@@ -203,6 +210,9 @@ struct ActiveOrderBar: View {
             .accessibilityElement(children: .combine)
             .accessibilityLabel("\(order.module.shortName) order \(order.status.rawValue.lowercased()): \(order.title). Tap to track.")
             .onAppear { isPulsing = true }
+            .sheet(item: $trackingOrder) { tracked in
+                OrderTrackingSheet(order: tracked)
+            }
             .transition(.move(edge: .bottom).combined(with: .opacity))
         }
     }

@@ -38,6 +38,14 @@ struct MarketplaceListing: Identifiable, Hashable {
     let id: UUID
     let title: String
     let imageName: String
+    /// A photo picked from the seller's library via the Sell flow's
+    /// `PhotosPicker`, if any — takes priority over everything else below
+    /// wherever the listing's photo is rendered.
+    let photoData: Data?
+    /// Asset-catalog image curated for a mock listing (never set by the Sell
+    /// flow) — takes priority over `imageName` (the SF Symbol fallback) but
+    /// not over a real `photoData` upload. `nil` means no curated photo.
+    let photoAssetName: String?
     let price: Double
     let isFree: Bool
     let condition: ListingCondition
@@ -45,6 +53,11 @@ struct MarketplaceListing: Identifiable, Hashable {
     let locationName: String
     let distanceKm: Double
     let postedAt: Date
+    /// The account that posted this listing. Compared against
+    /// `AppState.currentUser?.id` so a seller viewing their own listing sees
+    /// listing-management actions instead of a "Message Seller" button that
+    /// would otherwise let them message themselves.
+    let sellerID: UUID
     let sellerName: String
     let sellerPhotoName: String
     let sellerRating: Double
@@ -56,6 +69,8 @@ struct MarketplaceListing: Identifiable, Hashable {
         id: UUID = UUID(),
         title: String,
         imageName: String,
+        photoData: Data? = nil,
+        photoAssetName: String? = nil,
         price: Double,
         isFree: Bool = false,
         condition: ListingCondition,
@@ -63,6 +78,7 @@ struct MarketplaceListing: Identifiable, Hashable {
         locationName: String,
         distanceKm: Double,
         postedAt: Date,
+        sellerID: UUID,
         sellerName: String,
         sellerPhotoName: String,
         sellerRating: Double,
@@ -73,6 +89,8 @@ struct MarketplaceListing: Identifiable, Hashable {
         self.id = id
         self.title = title
         self.imageName = imageName
+        self.photoData = photoData
+        self.photoAssetName = photoAssetName
         self.price = price
         self.isFree = isFree
         self.condition = condition
@@ -80,6 +98,7 @@ struct MarketplaceListing: Identifiable, Hashable {
         self.locationName = locationName
         self.distanceKm = distanceKm
         self.postedAt = postedAt
+        self.sellerID = sellerID
         self.sellerName = sellerName
         self.sellerPhotoName = sellerPhotoName
         self.sellerRating = sellerRating

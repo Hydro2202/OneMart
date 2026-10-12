@@ -373,18 +373,27 @@ struct HomeScreen: View {
                         } label: {
                             VStack(alignment: .leading, spacing: AppSpacing.xxs) {
                                 ZStack {
-                                    LinearGradient(
-                                        colors: [AppColor.coral.opacity(0.22), AppColor.amber.opacity(0.16)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                    .frame(width: 158, height: 88)
-                                    .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm))
+                                    if let assetName = restaurant.photoAssetName {
+                                        Image(assetName)
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(width: 158, height: 88)
+                                            .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm))
+                                            .clipped()
+                                    } else {
+                                        LinearGradient(
+                                            colors: [AppColor.coral.opacity(0.22), AppColor.amber.opacity(0.16)],
+                                            startPoint: .topLeading,
+                                            endPoint: .bottomTrailing
+                                        )
+                                        .frame(width: 158, height: 88)
+                                        .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm))
 
-                                    // Real photo swap point: replace with the restaurant's real cover photo once available.
-                                    Image(systemName: restaurant.imageName)
-                                        .font(.system(size: 28, weight: .semibold))
-                                        .foregroundStyle(AppColor.coral)
+                                        // Real photo swap point: replace with the restaurant's real cover photo once available.
+                                        Image(systemName: restaurant.imageName)
+                                            .font(.system(size: 28, weight: .semibold))
+                                            .foregroundStyle(AppColor.coral)
+                                    }
                                 }
 
                                 Text(restaurant.name)

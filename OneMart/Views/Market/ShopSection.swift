@@ -28,6 +28,8 @@ struct ShopSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: AppSpacing.lg) {
+            ActiveOrderBanner(module: .shop)
+
             SearchField(placeholder: "Search products or stores…", text: $searchText)
                 .padding(.horizontal, AppSpacing.md)
 
@@ -224,19 +226,29 @@ struct ProductCard: View {
 
     private var imageArea: some View {
         ZStack(alignment: .topLeading) {
-            LinearGradient(
-                colors: [AppColor.jade.opacity(0.18), AppColor.jade.opacity(0.08)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .frame(height: 104)
-            .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm))
-            .overlay(
-                // Real photo swap point: replace with the product's real photo once available.
-                Image(systemName: product.imageName)
-                    .font(.system(size: 32, weight: .semibold))
-                    .foregroundStyle(AppColor.jade)
-            )
+            if let assetName = product.photoAssetName {
+                Image(assetName)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 104)
+                    .frame(maxWidth: .infinity)
+                    .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm))
+                    .clipped()
+            } else {
+                LinearGradient(
+                    colors: [AppColor.jade.opacity(0.18), AppColor.jade.opacity(0.08)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .frame(height: 104)
+                .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm))
+                .overlay(
+                    // Real photo swap point: replace with the product's real photo once available.
+                    Image(systemName: product.imageName)
+                        .font(.system(size: 32, weight: .semibold))
+                        .foregroundStyle(AppColor.jade)
+                )
+            }
 
             HStack(alignment: .top) {
                 if let discount = product.discountPercent {

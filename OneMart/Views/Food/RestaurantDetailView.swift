@@ -126,19 +126,33 @@ struct RestaurantDetailView: View {
 
     private var hero: some View {
         ZStack(alignment: .bottomLeading) {
-            LinearGradient(
-                colors: [AppColor.coral, AppColor.amber],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .frame(height: 168)
+            if let assetName = restaurant.photoAssetName {
+                Image(assetName)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 168)
+                    .frame(maxWidth: .infinity)
+                    .clipped()
+                    .overlay(LinearGradient(
+                        colors: [.clear, .black.opacity(0.45)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ))
+            } else {
+                LinearGradient(
+                    colors: [AppColor.coral, AppColor.amber],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .frame(height: 168)
 
-            // Real photo swap point: replace with the restaurant's real cover photo once available.
-            Image(systemName: restaurant.imageName)
-                .font(.system(size: 64, weight: .semibold))
-                .foregroundStyle(AppColor.onAccent.opacity(0.28))
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .padding(.trailing, AppSpacing.lg)
+                // Real photo swap point: replace with the restaurant's real cover photo once available.
+                Image(systemName: restaurant.imageName)
+                    .font(.system(size: 64, weight: .semibold))
+                    .foregroundStyle(AppColor.onAccent.opacity(0.28))
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .padding(.trailing, AppSpacing.lg)
+            }
 
             VStack(alignment: .leading, spacing: AppSpacing.xxs) {
                 HStack(spacing: AppSpacing.xxs) {

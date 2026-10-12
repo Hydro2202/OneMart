@@ -72,18 +72,26 @@ struct ProductDetailView: View {
 
     private var imageArea: some View {
         ZStack(alignment: .topLeading) {
-            LinearGradient(
-                colors: [AppColor.jade.opacity(0.22), AppColor.jade.opacity(0.08)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .frame(height: 248)
+            if let assetName = product.photoAssetName {
+                Image(assetName)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+            } else {
+                LinearGradient(
+                    colors: [AppColor.jade.opacity(0.22), AppColor.jade.opacity(0.08)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .frame(height: 248)
 
-            // Real photo swap point: replace with the product's real photo (or photo carousel) once available.
-            Image(systemName: product.imageName)
-                .font(.system(size: 92, weight: .semibold))
-                .foregroundStyle(AppColor.jade)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // Real photo swap point: replace with the product's real photo (or photo carousel) once available.
+                Image(systemName: product.imageName)
+                    .font(.system(size: 92, weight: .semibold))
+                    .foregroundStyle(AppColor.jade)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
 
             VStack(alignment: .leading, spacing: AppSpacing.xxs) {
                 if product.isFlashDeal {
@@ -154,12 +162,21 @@ struct ProductDetailView: View {
 
     private var merchantCard: some View {
         HStack(spacing: AppSpacing.sm) {
-            // Real photo swap point: replace with the merchant's real logo once available.
-            Image(systemName: product.merchant.logoName)
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(AppColor.jade)
-                .frame(width: 44, height: 44)
-                .background(AppColor.jade.opacity(0.14), in: RoundedRectangle(cornerRadius: AppRadius.sm))
+            if let logoAssetName = product.merchant.logoAssetName {
+                Image(logoAssetName)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 44, height: 44)
+                    .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm))
+                    .clipped()
+            } else {
+                // Real photo swap point: replace with the merchant's real logo once available.
+                Image(systemName: product.merchant.logoName)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(AppColor.jade)
+                    .frame(width: 44, height: 44)
+                    .background(AppColor.jade.opacity(0.14), in: RoundedRectangle(cornerRadius: AppRadius.sm))
+            }
 
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: AppSpacing.xxs) {

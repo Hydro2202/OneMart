@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// The **Community** half of the Market tab — the neighbour-to-neighbour board.
 ///
@@ -81,19 +82,38 @@ struct ListingCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: AppSpacing.xxs) {
             ZStack(alignment: .topTrailing) {
-                LinearGradient(
-                    colors: [AppColor.jade.opacity(0.20), AppColor.jade.opacity(0.08)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .frame(height: 104)
-                .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm))
-                .overlay(
-                    // Real photo swap point: replace with the listing's real photo once available.
-                    Image(systemName: listing.imageName)
-                        .font(.system(size: 30, weight: .semibold))
-                        .foregroundStyle(AppColor.jade)
-                )
+                if let data = listing.photoData, let uiImage = UIImage(data: data) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(height: 104)
+                        .frame(maxWidth: .infinity)
+                        .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm))
+                        .clipped()
+                } else if let assetName = listing.photoAssetName {
+                    Image(assetName)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(height: 104)
+                        .frame(maxWidth: .infinity)
+                        .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm))
+                        .clipped()
+                } else {
+                    LinearGradient(
+                        colors: [AppColor.jade.opacity(0.20), AppColor.jade.opacity(0.08)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    .frame(height: 104)
+                    .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm))
+                    .overlay(
+                        // Real photo swap point: a seller's own upload (above) covers
+                        // this for new listings; these mock ones never got a real photo.
+                        Image(systemName: listing.imageName)
+                            .font(.system(size: 30, weight: .semibold))
+                            .foregroundStyle(AppColor.jade)
+                    )
+                }
 
                 Button {
                     withAnimation(AppMotion.adaptive(AppMotion.springBouncy, reduceMotion: reduceMotion)) {

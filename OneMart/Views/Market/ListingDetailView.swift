@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Full page for a community listing — the fix for "tapping a listing did
 /// nothing".
@@ -69,18 +70,33 @@ struct ListingDetailView: View {
 
     private var imageArea: some View {
         ZStack(alignment: .topLeading) {
-            LinearGradient(
-                colors: [AppColor.jade.opacity(0.24), AppColor.jade.opacity(0.08)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .frame(height: 240)
+            if let data = listing.photoData, let uiImage = UIImage(data: data) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+            } else if let assetName = listing.photoAssetName {
+                Image(assetName)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
+            } else {
+                LinearGradient(
+                    colors: [AppColor.jade.opacity(0.24), AppColor.jade.opacity(0.08)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .frame(height: 240)
 
-            // Real photo swap point: replace with the listing's real photo (or photo carousel) once available.
-            Image(systemName: listing.imageName)
-                .font(.system(size: 88, weight: .semibold))
-                .foregroundStyle(AppColor.jade)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // Real photo swap point: the seller's own upload (above) covers
+                // this for new listings; these mock ones never got a real photo.
+                Image(systemName: listing.imageName)
+                    .font(.system(size: 88, weight: .semibold))
+                    .foregroundStyle(AppColor.jade)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
 
             HStack(spacing: AppSpacing.xxs) {
                 TagPill(text: listing.condition.rawValue, tint: AppColor.amber, isFilled: true)
@@ -208,16 +224,20 @@ struct ListingDetailView: View {
 
     private var actionBar: some View {
         VStack(spacing: AppSpacing.xs) {
-            PrimaryButton(
-                title: hasExistingThread ? "Open Conversation" : "Message Seller",
-                systemImage: "bubble.left.fill",
-                tint: AppColor.jade,
-                action: messageSeller
-            )
+            if isOwnListing {
+                ownListingNotice
+            } else {
+                PrimaryButton(
+                    title: hasExistingThread ? "Open Conversation" : "Message Seller",
+                    systemImage: "bubble.left.fill",
+                    tint: AppColor.jade,
+                    action: messageSeller
+                )
 
-            if listing.isDeliveryAvailable {
-                SecondaryButton(title: "Arrange OneMart Delivery", systemImage: "shippingbox.fill") {
-                    appState.activeTab = .logistics
+                if listing.isDeliveryAvailable {
+                    SecondaryButton(title: "Arrange OneMart Delivery", systemImage: "shippingbox.fill") {
+                        appState.arrangeDelivery(for: listing)
+                    }
                 }
             }
         }
@@ -225,6 +245,26 @@ struct ListingDetailView: View {
         .padding(.top, AppSpacing.xs)
         .padding(.bottom, AppSpacing.xs)
         .background(.ultraThinMaterial)
+    }
+
+    /// Shown instead of "Message Seller" when the signed-in user posted this
+    /// listing themselves — the fix for seeing your own listing offer to
+    /// message yourself.
+    private var ownListingNotice: some View {
+        HStack(spacing: AppSpacing.xs) {
+            Image(systemName: "checkmark.seal.fill")
+                .foregroundStyle(AppColor.jade)
+            Text("This is your listing — buyers message you here once someone's interested.")
+                .appTextStyle(AppTextStyle.footnote, color: AppColor.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(AppSpacing.sm)
+        .background(AppColor.jade.opacity(0.1), in: RoundedRectangle(cornerRadius: AppRadius.md))
+    }
+
+    private var isOwnListing: Bool {
+        appState.currentUser?.id == listing.sellerID
     }
 
     private var hasExistingThread: Bool {

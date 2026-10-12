@@ -10,6 +10,7 @@ enum MockProducts {
     static let techHaus = Merchant(
         name: "TechHaus PH",
         logoName: "laptopcomputer",
+        logoAssetName: "merch_techHaus",
         isOfficialStore: true,
         rating: 4.9,
         responseRate: 98
@@ -18,6 +19,7 @@ enum MockProducts {
     static let manilaThreads = Merchant(
         name: "Manila Threads",
         logoName: "tshirt.fill",
+        logoAssetName: "merch_manilaThreads",
         rating: 4.6,
         responseRate: 91
     )
@@ -25,6 +27,7 @@ enum MockProducts {
     static let bahayHome = Merchant(
         name: "Bahay & Home Depot",
         logoName: "house.fill",
+        logoAssetName: "merch_bahayHome",
         isOfficialStore: true,
         rating: 4.7,
         responseRate: 95
@@ -33,6 +36,7 @@ enum MockProducts {
     static let glowUpBeauty = Merchant(
         name: "GlowUp Beauty MNL",
         logoName: "sparkles",
+        logoAssetName: "merch_glowUpBeauty",
         rating: 4.8,
         responseRate: 93
     )
@@ -40,6 +44,7 @@ enum MockProducts {
     static let sariSariExpress = Merchant(
         name: "Sari-Sari Express",
         logoName: "cart.fill",
+        logoAssetName: "merch_sariSariExpress",
         rating: 4.5,
         responseRate: 88
     )
@@ -54,6 +59,7 @@ enum MockProducts {
         Product(
             name: "Wireless Noise-Cancelling Earbuds Pro",
             imageName: "headphones",
+            photoAssetName: "prod_earbuds",
             merchant: techHaus,
             price: 1_899,
             originalPrice: 3_499,
@@ -67,6 +73,7 @@ enum MockProducts {
         Product(
             name: "65W GaN Fast Charger (3-Port)",
             imageName: "bolt.fill",
+            photoAssetName: "prod_charger",
             merchant: techHaus,
             price: 749,
             originalPrice: 1_290,
@@ -80,6 +87,7 @@ enum MockProducts {
         Product(
             name: "Barong Tagalog Slim Fit (Piña-Jusi)",
             imageName: "tshirt.fill",
+            photoAssetName: "prod_barong",
             merchant: manilaThreads,
             price: 2_450,
             originalPrice: 3_200,
@@ -90,6 +98,7 @@ enum MockProducts {
         Product(
             name: "Rattan Accent Chair — Cebu Made",
             imageName: "chair.lounge.fill",
+            photoAssetName: "prod_rattanChair",
             merchant: bahayHome,
             price: 4_899,
             unitsSold: 342,
@@ -99,6 +108,7 @@ enum MockProducts {
         Product(
             name: "Calamansi Brightening Serum 30ml",
             imageName: "drop.fill",
+            photoAssetName: "prod_serum",
             merchant: glowUpBeauty,
             price: 585,
             originalPrice: 890,
@@ -112,6 +122,7 @@ enum MockProducts {
         Product(
             name: "Adobo Starter Pack (Pantry Bundle)",
             imageName: "cart.fill",
+            photoAssetName: "prod_adobo",
             merchant: sariSariExpress,
             price: 429,
             unitsSold: 5_610,
@@ -121,6 +132,7 @@ enum MockProducts {
         Product(
             name: "Smart LED Ceiling Fan 52\"",
             imageName: "wind",
+            photoAssetName: "prod_ceilingFan",
             merchant: bahayHome,
             price: 3_299,
             originalPrice: 4_150,
@@ -131,6 +143,7 @@ enum MockProducts {
         Product(
             name: "Everyday Canvas Tote — Sampaguita Print",
             imageName: "bag.fill",
+            photoAssetName: "prod_tote",
             merchant: manilaThreads,
             price: 349,
             unitsSold: 9_120,
@@ -141,6 +154,7 @@ enum MockProducts {
         Product(
             name: "Portable Blender 500ml (USB-C)",
             imageName: "cup.and.saucer.fill",
+            photoAssetName: "prod_blender",
             merchant: techHaus,
             price: 899,
             originalPrice: 1_499,

@@ -419,6 +419,7 @@ enum MockRestaurants {
     static let lolaNenas = Restaurant(
         name: "Lola Nena's Inasal Grill",
         imageName: "flame.fill",
+        photoAssetName: "rest_lolaNenas",
         categories: [.filipino, .streetFood],
         neighborhood: "Poblacion, Makati",
         rating: 4.8,
@@ -435,6 +436,7 @@ enum MockRestaurants {
     static let kapeKalye = Restaurant(
         name: "Kape Kalye Coffee Bar",
         imageName: "cup.and.saucer.fill",
+        photoAssetName: "rest_kapeKalye",
         categories: [.coffee, .desserts],
         neighborhood: "Katipunan, Quezon City",
         rating: 4.7,
@@ -450,6 +452,7 @@ enum MockRestaurants {
     static let titaBaby = Restaurant(
         name: "Tita Baby's Lutong Bahay",
         imageName: "fork.knife",
+        photoAssetName: "rest_titaBaby",
         categories: [.filipino, .healthy],
         neighborhood: "San Juan City",
         rating: 4.6,
@@ -465,6 +468,7 @@ enum MockRestaurants {
     static let seoulSarap = Restaurant(
         name: "Seoul Sarap KBBQ",
         imageName: "fish.fill",
+        photoAssetName: "rest_seoulSarap",
         categories: [.koreanJapanese],
         neighborhood: "BGC, Taguig",
         rating: 4.9,
@@ -481,6 +485,7 @@ enum MockRestaurants {
     static let jollyBurger = Restaurant(
         name: "Burger Bayan Express",
         imageName: "takeoutbag.and.cup.and.straw.fill",
+        photoAssetName: "rest_jollyBurger",
         categories: [.fastFood],
         neighborhood: "España, Manila",
         rating: 4.4,
@@ -496,6 +501,7 @@ enum MockRestaurants {
     static let superSarap = Restaurant(
         name: "SuperSarap Palengke Mart",
         imageName: "cart.fill",
+        photoAssetName: "rest_superSarap",
         categories: [.grocery, .healthy],
         neighborhood: "Mandaluyong City",
         rating: 4.5,

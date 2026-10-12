@@ -134,6 +134,14 @@ enum WalletPaymentError: Error, Equatable {
 /// Injected once at the root with `@StateObject` and read everywhere else with
 /// `@EnvironmentObject`. iOS 16 is the deployment target, so this is a classic
 /// `ObservableObject` rather than an `@Observable` macro type.
+///
+/// Pinned to the main actor: every `@Published` property here drives SwiftUI,
+/// and `async` methods below (auth, wallet sync, order sync) used to run
+/// their bodies off the main thread, tripping "Publishing changes from
+/// background threads is not allowed" and making UI updates (like leaving
+/// the splash screen) unreliable/delayed. `@MainActor` keeps all of that
+/// state mutation on the main thread automatically.
+@MainActor
 final class AppState: ObservableObject {
 
     // MARK: Navigation
@@ -527,6 +535,26 @@ final class AppState: ObservableObject {
                 || listing.title.localizedCaseInsensitiveContains(trimmed)
             return matchesCategory && matchesQuery
         }
+    }
+
+    /// Set by "Arrange OneMart Delivery" on a listing's detail page.
+    /// `LogisticsScreen` reads and clears this on appear to pre-fill the
+    /// pickup address with where the item actually is, so the buyer only has
+    /// to fill in where it's going — the whole point of the button.
+    @Published var deliveryDraftPickup: Address?
+
+    /// Seeds a Send booking from a community listing and jumps to the Send
+    /// tab. The listing has no street address, only `locationName`, so the
+    /// pickup starts as a labeled draft the buyer can still edit or replace
+    /// before booking — `AddressEditorView` never treats `initialAddress` as
+    /// final.
+    func arrangeDelivery(for listing: MarketplaceListing) {
+        deliveryDraftPickup = Address(
+            label: "\(listing.sellerName)'s listing",
+            fullAddress: listing.locationName,
+            contactName: listing.sellerName
+        )
+        activeTab = .logistics
     }
 
     // MARK: - Orders

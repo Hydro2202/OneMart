@@ -45,6 +45,8 @@ struct FoodScreen: View {
                 cart: .food
             )
 
+            ActiveOrderBanner(module: .food, bottomPadding: AppSpacing.xs)
+
             SearchField(placeholder: "Search restaurants or dishes…", text: $searchText)
                 .padding(.horizontal, AppSpacing.md)
                 .padding(.bottom, AppSpacing.xs)
@@ -170,19 +172,29 @@ struct RestaurantCard: View {
 
     private var cover: some View {
         ZStack(alignment: .topLeading) {
-            LinearGradient(
-                colors: [AppColor.coral.opacity(0.22), AppColor.amber.opacity(0.18)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .frame(height: 118)
-            .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm))
-            .overlay(
-                // Real photo swap point: replace with the restaurant's real cover photo once available.
-                Image(systemName: restaurant.imageName)
-                    .font(.system(size: 40, weight: .semibold))
-                    .foregroundStyle(AppColor.coral)
-            )
+            if let assetName = restaurant.photoAssetName {
+                Image(assetName)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 118)
+                    .frame(maxWidth: .infinity)
+                    .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm))
+                    .clipped()
+            } else {
+                LinearGradient(
+                    colors: [AppColor.coral.opacity(0.22), AppColor.amber.opacity(0.18)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .frame(height: 118)
+                .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm))
+                .overlay(
+                    // Real photo swap point: replace with the restaurant's real cover photo once available.
+                    Image(systemName: restaurant.imageName)
+                        .font(.system(size: 40, weight: .semibold))
+                        .foregroundStyle(AppColor.coral)
+                )
+            }
 
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: AppSpacing.xxs) {
@@ -224,19 +236,28 @@ private struct PromotedRestaurantCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: AppSpacing.xxs) {
             ZStack(alignment: .bottomLeading) {
-                LinearGradient(
-                    colors: [AppColor.coral, AppColor.amber],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .frame(width: 200, height: 92)
-                .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm))
+                if let assetName = restaurant.photoAssetName {
+                    Image(assetName)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 200, height: 92)
+                        .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm))
+                        .clipped()
+                } else {
+                    LinearGradient(
+                        colors: [AppColor.coral, AppColor.amber],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    .frame(width: 200, height: 92)
+                    .clipShape(RoundedRectangle(cornerRadius: AppRadius.sm))
 
-                // Real photo swap point: replace with the restaurant's real cover photo once available.
-                Image(systemName: restaurant.imageName)
-                    .font(.system(size: 30, weight: .semibold))
-                    .foregroundStyle(AppColor.onAccent.opacity(0.9))
-                    .padding(AppSpacing.xs)
+                    // Real photo swap point: replace with the restaurant's real cover photo once available.
+                    Image(systemName: restaurant.imageName)
+                        .font(.system(size: 30, weight: .semibold))
+                        .foregroundStyle(AppColor.onAccent.opacity(0.9))
+                        .padding(AppSpacing.xs)
+                }
             }
 
             Text(restaurant.name)

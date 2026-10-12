@@ -40,9 +40,10 @@ enum TopUpMethod: String, CaseIterable, Identifiable {
     }
 
     var flowHint: String {
-        switch flow {
-        case .qrCode: return "QR Code"
-        case .bankForm, .cardForm: return "Enter Details"
+        switch self {
+        case .gcash, .payMaya, .goTyme: return "QR Code"
+        case .bankTransfer: return "View Account"
+        case .creditCard: return "Enter Details"
         }
     }
 

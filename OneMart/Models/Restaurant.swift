@@ -32,6 +32,10 @@ struct Restaurant: Identifiable, Hashable {
     let id: UUID
     let name: String
     let imageName: String
+    /// Name of an asset-catalog image to use as the real cover photo instead
+    /// of the `imageName` SF Symbol fallback, when one has been curated for
+    /// this restaurant. `nil` means "no photo yet, show the symbol."
+    let photoAssetName: String?
     let categories: [FoodCategory]
     let neighborhood: String
     let rating: Double
@@ -49,6 +53,7 @@ struct Restaurant: Identifiable, Hashable {
         id: UUID = UUID(),
         name: String,
         imageName: String,
+        photoAssetName: String? = nil,
         categories: [FoodCategory],
         neighborhood: String,
         rating: Double,
@@ -65,6 +70,7 @@ struct Restaurant: Identifiable, Hashable {
         self.id = id
         self.name = name
         self.imageName = imageName
+        self.photoAssetName = photoAssetName
         self.categories = categories
         self.neighborhood = neighborhood
         self.rating = rating

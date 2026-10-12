@@ -4,6 +4,9 @@ struct Merchant: Identifiable, Hashable {
     let id: UUID
     let name: String
     let logoName: String
+    /// Asset-catalog image to use as the real logo instead of the `logoName`
+    /// SF Symbol fallback, when one has been curated. `nil` means no photo yet.
+    let logoAssetName: String?
     let isOfficialStore: Bool
     let rating: Double
     let responseRate: Int // percentage
@@ -12,6 +15,7 @@ struct Merchant: Identifiable, Hashable {
         id: UUID = UUID(),
         name: String,
         logoName: String,
+        logoAssetName: String? = nil,
         isOfficialStore: Bool = false,
         rating: Double,
         responseRate: Int
@@ -19,6 +23,7 @@ struct Merchant: Identifiable, Hashable {
         self.id = id
         self.name = name
         self.logoName = logoName
+        self.logoAssetName = logoAssetName
         self.isOfficialStore = isOfficialStore
         self.rating = rating
         self.responseRate = responseRate
@@ -29,6 +34,10 @@ struct Product: Identifiable, Hashable {
     let id: UUID
     let name: String
     let imageName: String
+    /// Asset-catalog image to use as the real product photo instead of the
+    /// `imageName` SF Symbol fallback, when one has been curated. `nil` means
+    /// no photo yet.
+    let photoAssetName: String?
     let merchant: Merchant
     let price: Double
     let originalPrice: Double?
@@ -44,6 +53,7 @@ struct Product: Identifiable, Hashable {
         id: UUID = UUID(),
         name: String,
         imageName: String,
+        photoAssetName: String? = nil,
         merchant: Merchant,
         price: Double,
         originalPrice: Double? = nil,
@@ -58,6 +68,7 @@ struct Product: Identifiable, Hashable {
         self.id = id
         self.name = name
         self.imageName = imageName
+        self.photoAssetName = photoAssetName
         self.merchant = merchant
         self.price = price
         self.originalPrice = originalPrice

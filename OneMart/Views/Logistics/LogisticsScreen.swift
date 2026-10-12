@@ -102,6 +102,7 @@ struct LogisticsScreen: View {
         .navigationBarHidden(true)
         .animation(AppMotion.adaptive(AppMotion.springSnappy, reduceMotion: reduceMotion), value: step)
         .animation(AppMotion.easeStandard, value: bookedParcel?.id)
+        .onAppear(perform: consumeDeliveryDraftIfNeeded)
         .sheet(item: $editingEnd) { end in
             AddressEditorView(
                 title: end == .pickup ? "Pickup address" : "Drop-off address",
@@ -625,6 +626,16 @@ struct LogisticsScreen: View {
     }
 
     // MARK: - Actions
+
+    /// Picks up the pickup-address draft "Arrange OneMart Delivery" leaves on
+    /// `AppState` (from a Community listing) and clears it immediately after,
+    /// so it only ever applies once and a later, unrelated visit to Send
+    /// starts clean.
+    private func consumeDeliveryDraftIfNeeded() {
+        guard pickup == nil, let draft = appState.deliveryDraftPickup else { return }
+        pickup = draft
+        appState.deliveryDraftPickup = nil
+    }
 
     private func goNext() {
         guard canAdvance,
