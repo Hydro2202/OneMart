@@ -27,6 +27,7 @@ targets:
       - path: OneMart
         excludes:
           - "**/SupabaseConfig.example.swift"
+          - "**/GeminiSecrets.example.swift"
     dependencies:
       - package: Supabase
         product: Supabase

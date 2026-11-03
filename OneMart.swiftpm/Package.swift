@@ -40,6 +40,7 @@ let package = Package(
             exclude: [
                 "Package.swift",
                 "Supabase/SupabaseConfig.example.swift",
+                "AI/GeminiSecrets.example.swift",
                 "Resources/Info.plist"
             ]
         )

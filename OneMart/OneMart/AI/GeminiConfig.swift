@@ -21,7 +21,7 @@ enum GeminiConfig {
     /// sent the same way, as a `key` query parameter (and, for extra
     /// compatibility, as an `x-goog-api-key` header too) against the native
     /// `generativelanguage.googleapis.com` endpoint. See `AutoReplyEngine`.
-    static let apiKey = "AQ.Ab8RN6JjvirjNwIIVr-p8wYA57qeQvV3Z_iXrHEo3iSbVyc-Gw"
+    static let apiKey = GeminiSecrets.apiKey
 
     /// `generateContent` model id. Flash is fast and cheap enough for a
     /// one-line chat reply.
