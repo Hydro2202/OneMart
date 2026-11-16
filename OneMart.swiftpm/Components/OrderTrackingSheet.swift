@@ -250,9 +250,11 @@ struct OrderTrackingSheet: View {
     }
 }
 
-/// Small tappable row a tab shows near its top while that module has an
-/// in-progress order — tapping opens `OrderTrackingSheet` for that order.
-/// Renders nothing when the module has no active order.
+/// Tappable rows a tab shows near its top while that module has in-progress
+/// orders — one row per active order (e.g. two Food orders from two
+/// different restaurants show as two rows), each opening `OrderTrackingSheet`
+/// for that specific order. Renders nothing when the module has no active
+/// order.
 struct ActiveOrderBanner: View {
     let module: ServiceModule
     /// Outer padding lives inside the banner so a module with no active order
@@ -263,61 +265,71 @@ struct ActiveOrderBanner: View {
     @EnvironmentObject private var appState: AppState
     @State private var trackingOrder: Order?
 
-    private var order: Order? {
-        appState.activeOrders.first { $0.module == module }
+    /// Every active order for this module, newest first.
+    private var orders: [Order] {
+        appState.activeOrders.filter { $0.module == module }
     }
 
     var body: some View {
-        if let order {
-            Button {
-                trackingOrder = order
-            } label: {
-                HStack(spacing: AppSpacing.sm) {
-                    ZStack {
-                        Circle()
-                            .fill(module.tintColor.opacity(0.16))
-                            .frame(width: 36, height: 36)
-                        Image(systemName: order.imageName)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(module.tintColor)
-                    }
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(order.status.rawValue)
-                            .font(AppFont.rounded(12, weight: .bold))
-                            .foregroundStyle(module.tintColor)
-                        Text(order.title)
-                            .appTextStyle(AppTextStyle.footnote)
-                            .lineLimit(1)
-                    }
-
-                    Spacer(minLength: AppSpacing.xs)
-
-                    Text("Track")
-                        .font(AppTextStyle.badge)
-                        .foregroundStyle(module.tintColor)
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundStyle(AppColor.textTertiary)
+        if !orders.isEmpty {
+            VStack(spacing: AppSpacing.xs) {
+                ForEach(orders) { order in
+                    row(for: order)
                 }
-                .padding(.horizontal, AppSpacing.sm)
-                .padding(.vertical, AppSpacing.xs)
-                .background(module.tintColor.opacity(0.08), in: RoundedRectangle(cornerRadius: AppRadius.md))
-                .overlay(
-                    RoundedRectangle(cornerRadius: AppRadius.md)
-                        .stroke(module.tintColor.opacity(0.25), lineWidth: 1)
-                )
-                .contentShape(Rectangle())
             }
-            .buttonStyle(.pressable)
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("\(module.shortName) order \(order.status.rawValue.lowercased()): \(order.title). Tap to track.")
             .padding(.horizontal, horizontalPadding)
             .padding(.bottom, bottomPadding)
+            .animation(AppMotion.easeStandard, value: orders.map(\.id))
             .sheet(item: $trackingOrder) { tracked in
                 OrderTrackingSheet(order: tracked)
             }
         }
+    }
+
+    private func row(for order: Order) -> some View {
+        Button {
+            trackingOrder = order
+        } label: {
+            HStack(spacing: AppSpacing.sm) {
+                ZStack {
+                    Circle()
+                        .fill(module.tintColor.opacity(0.16))
+                        .frame(width: 36, height: 36)
+                    Image(systemName: order.imageName)
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(module.tintColor)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(order.status.rawValue)
+                        .font(AppFont.rounded(12, weight: .bold))
+                        .foregroundStyle(module.tintColor)
+                    Text(order.title)
+                        .appTextStyle(AppTextStyle.footnote)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: AppSpacing.xs)
+
+                Text("Track")
+                    .font(AppTextStyle.badge)
+                    .foregroundStyle(module.tintColor)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(AppColor.textTertiary)
+            }
+            .padding(.horizontal, AppSpacing.sm)
+            .padding(.vertical, AppSpacing.xs)
+            .background(module.tintColor.opacity(0.08), in: RoundedRectangle(cornerRadius: AppRadius.md))
+            .overlay(
+                RoundedRectangle(cornerRadius: AppRadius.md)
+                    .stroke(module.tintColor.opacity(0.25), lineWidth: 1)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.pressable)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(module.shortName) order \(order.status.rawValue.lowercased()): \(order.title). Tap to track.")
     }
 }
 

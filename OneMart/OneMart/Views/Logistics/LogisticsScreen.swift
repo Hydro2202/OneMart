@@ -168,10 +168,17 @@ struct LogisticsScreen: View {
                 tint: AppColor.jade
             )
 
-            if let activeParcel = inFlightParcel {
+            if !inFlightParcels.isEmpty {
                 VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                    SectionHeader(title: "Already on its way", subtitle: "Your parcel in flight right now")
-                    ParcelTrackingCard(parcel: activeParcel, animatesOnAppear: false)
+                    SectionHeader(
+                        title: "Already on its way",
+                        subtitle: inFlightParcels.count == 1
+                            ? "Your parcel in flight right now"
+                            : "\(inFlightParcels.count) parcels in flight right now"
+                    )
+                    ForEach(inFlightParcels) { parcel in
+                        ParcelTrackingCard(parcel: parcel, animatesOnAppear: false)
+                    }
                 }
             }
 
@@ -583,10 +590,15 @@ struct LogisticsScreen: View {
 
         riderCard
 
-        if let activeParcel = inFlightParcel {
+        if !inFlightParcels.isEmpty {
             VStack(alignment: .leading, spacing: AppSpacing.xs) {
-                SectionHeader(title: "Your other parcel", subtitle: "Still in transit")
-                ParcelTrackingCard(parcel: activeParcel, animatesOnAppear: false)
+                SectionHeader(
+                    title: inFlightParcels.count == 1 ? "Your other parcel" : "Your other parcels",
+                    subtitle: "Still in transit"
+                )
+                ForEach(inFlightParcels) { parcel in
+                    ParcelTrackingCard(parcel: parcel, animatesOnAppear: false)
+                }
             }
         }
 
@@ -618,11 +630,11 @@ struct LogisticsScreen: View {
         .appShadow(.subtle)
     }
 
-    /// The seeded in-flight parcel, hidden once it would duplicate the parcel
-    /// the user just booked.
-    private var inFlightParcel: Parcel? {
-        let parcel = MockParcelAddresses.activeParcel
-        return parcel.trackingCode == bookedParcel?.trackingCode ? nil : parcel
+    /// This account's own booked parcels that haven't been delivered yet —
+    /// excluding the one currently shown on the confirmation screen. A fresh
+    /// account has none, so nothing shows until the user books a parcel.
+    private var inFlightParcels: [Parcel] {
+        appState.bookedParcels.filter { $0.id != bookedParcel?.id && $0.status != .delivered }
     }
 
     // MARK: - Actions
@@ -697,6 +709,7 @@ struct LogisticsScreen: View {
             )
         )
 
+        appState.recordParcel(parcel)
         bookedParcel = parcel
     }
 

@@ -189,6 +189,9 @@ final class AppState: ObservableObject {
     // Home's activity feed shows what the user actually did, mixed in with the
     // `MockOrders` history.
     @Published private(set) var placedOrders: [Order] = []
+    /// Parcels this account booked through Send (newest first). Starts empty
+    /// for every account — there is no seeded "already in flight" parcel.
+    @Published private(set) var bookedParcels: [Parcel] = []
 
     // MARK: - Derived cart values
 
@@ -565,6 +568,12 @@ final class AppState: ObservableObject {
 
     /// Records an order placed in this session (checkout, ride booking, parcel
     /// booking) so it shows up in Home's activity feed.
+    /// Records a parcel booked through Send so the Send tab can keep showing
+    /// it as "Already on its way" after the user books another one.
+    func recordParcel(_ parcel: Parcel) {
+        bookedParcels.insert(parcel, at: 0)
+    }
+
     func recordOrder(_ order: Order) {
         placedOrders.insert(order, at: 0)
         guard SupabaseConfig.isConfigured else { return }
@@ -796,7 +805,7 @@ final class AppState: ObservableObject {
     /// error, …) — callers show `error.localizedDescription` directly rather
     /// than a canned message, since that's the actual reason it failed.
     func logIn(email: String, password: String) async throws {
-        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         try await AuthRepository.signIn(email: trimmedEmail, password: password)
         try await loadAuthenticatedUser()
         activeTab = .home
@@ -816,7 +825,7 @@ final class AppState: ObservableObject {
     @discardableResult
     func signUp(name: String, email: String, phone: String, password: String, confirmPassword: String) async throws -> AuthRepository.SignUpOutcome {
         let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let trimmedPhone = phone.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !trimmedName.isEmpty else { throw AuthValidationError.missingName }
@@ -882,6 +891,7 @@ final class AppState: ObservableObject {
         walletTransactions = []
         messageThreads = []
         placedOrders.removeAll()
+        bookedParcels.removeAll()
         notifications = []
         if !keepingCatalog {
             communityListings = MockListings.all

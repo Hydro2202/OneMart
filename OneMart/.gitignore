@@ -1,13 +1,20 @@
 ## Xcode
-*.xcodeproj
-*.xcworkspace
+# NOTE: the .xcodeproj itself (project.pbxproj) and OneMart.swiftpm MUST be
+# committed — only per-user Xcode state is ignored below.
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
 xcuserdata/
 DerivedData/
 .build/
-*.swiftpm
+*.swiftpm/.swiftpm/
 .DS_Store
 
 ## Supabase
-OneMart/Supabase/SupabaseConfig.swift
+# Matches every copy (Xcode project AND OneMart.swiftpm).
+SupabaseConfig.swift
 supabase/.branches/
 supabase/.temp/
+
+## Gemini (auto-reply AI key — same reasoning as SupabaseConfig.swift above:
+## every developer/machine keeps their own key out of source control)
+GeminiConfig.swift

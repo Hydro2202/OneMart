@@ -21,6 +21,19 @@ enum AuthRepository {
         case needsEmailConfirmation
     }
 
+    /// A readable error from the `create_account` database function.
+    struct AccountError: LocalizedError {
+        let message: String
+        var errorDescription: String? { message }
+    }
+
+    private struct CreateAccountParams: Encodable {
+        let p_email: String
+        let p_password: String
+        let p_name: String
+        let p_phone: String
+    }
+
     // MARK: - Sign up / in / out
 
     static func signUp(name: String, email: String, phone: String, password: String) async throws -> SignUpOutcome {
@@ -28,6 +41,34 @@ enum AuthRepository {
             try LocalAuthStore.signUp(name: name, email: email, phone: phone, password: password)
             return .signedIn
         }
+        // Preferred path: create the account through the `create_account`
+        // database function (supabase/migrations/0004_create_account.sql).
+        // It writes an already-confirmed user directly, so Supabase never
+        // sends a confirmation email — no "email rate limit exceeded", and
+        // the user is logged in instantly.
+        do {
+            try await SupabaseManager.client
+                .rpc(
+                    "create_account",
+                    params: CreateAccountParams(
+                        p_email: email,
+                        p_password: password,
+                        p_name: name,
+                        p_phone: phone
+                    )
+                )
+                .execute()
+            try await SupabaseManager.client.auth.signIn(email: email, password: password)
+            return .signedIn
+        } catch let error as PostgrestError where error.code != "PGRST202" {
+            // The function ran and rejected the input (email already
+            // registered, password too short, …) — show its message as-is.
+            throw AccountError(message: error.message)
+        } catch is PostgrestError {
+            // PGRST202 = function not found: RUN_THIS_SECOND.sql hasn't been
+            // run yet. Fall back to Supabase Auth's own sign-up below.
+        }
+
         let response = try await SupabaseManager.client.auth.signUp(
             email: email,
             password: password,
@@ -36,7 +77,19 @@ enum AuthRepository {
                 "phone": .string(phone)
             ]
         )
-        return response.session != nil ? .signedIn : .needsEmailConfirmation
+        if response.session != nil { return .signedIn }
+
+        // No session came back — Supabase's "Confirm email" setting is on.
+        // The database auto-confirms every new account (see
+        // supabase/migrations/0003_auto_confirm.sql), so signing in straight
+        // away still works and the user lands in the app instantly. Only if
+        // that fails do we fall back to the "Check Your Email" screen.
+        do {
+            try await SupabaseManager.client.auth.signIn(email: email, password: password)
+            return .signedIn
+        } catch {
+            return .needsEmailConfirmation
+        }
     }
 
     static func signIn(email: String, password: String) async throws {

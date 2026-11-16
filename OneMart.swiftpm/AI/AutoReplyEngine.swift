@@ -52,29 +52,62 @@ enum AutoReplyEngine {
         markdown, and don't mention you're an AI.
         """
 
-        var request = URLRequest(url: GeminiConfig.endpoint)
+        // Try each configured model in order — if one is retired, rate
+        // limited, or unavailable for this key, the next one gets a chance
+        // before `reply(...)` falls back to the local reply.
+        var lastError: Error = URLError(.badServerResponse)
+        for model in GeminiConfig.models {
+            do {
+                return try await requestReply(prompt: prompt, model: model)
+            } catch {
+                lastError = error
+                #if DEBUG
+                print("[AutoReplyEngine] \(model) failed: \(error.localizedDescription)")
+                #endif
+            }
+        }
+        throw lastError
+    }
+
+    private static func requestReply(prompt: String, model: String) async throws -> String {
+        var request = URLRequest(url: GeminiConfig.endpoint(for: model))
         request.httpMethod = "POST"
+        request.timeoutInterval = 15
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         // Sending the key both ways (query param + header) maximizes
         // compatibility with the newer "AQ." auth-key format, which some
         // client libraries have only partially supported during its rollout.
         request.setValue(GeminiConfig.apiKey, forHTTPHeaderField: "x-goog-api-key")
+
+        var generationConfig: [String: Any] = ["maxOutputTokens": 120, "temperature": 0.7]
+        if model.hasPrefix("gemini-2.5") {
+            // 2.5 models can spend the whole output budget "thinking" and
+            // return no text — a one-line chat reply doesn't need it.
+            generationConfig["thinkingConfig"] = ["thinkingBudget": 0]
+        }
         request.httpBody = try JSONSerialization.data(withJSONObject: [
             "contents": [["parts": [["text": prompt]]]],
-            "generationConfig": ["maxOutputTokens": 120, "temperature": 0.7]
+            "generationConfig": generationConfig
         ])
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            #if DEBUG
+            let code = (response as? HTTPURLResponse)?.statusCode ?? -1
+            print("[AutoReplyEngine] HTTP \(code): \(String(data: data, encoding: .utf8) ?? "")")
+            #endif
             throw URLError(.badServerResponse)
         }
 
         let decoded = try JSONDecoder().decode(GeminiResponse.self, from: data)
-        guard let text = decoded.candidates?.first?.content?.parts?.first?.text,
-              !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        let text = (decoded.candidates?.first?.content?.parts ?? [])
+            .compactMap(\.text)
+            .joined()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else {
             throw URLError(.cannotParseResponse)
         }
-        return text.trimmingCharacters(in: .whitespacesAndNewlines)
+        return text
     }
 
     private struct GeminiResponse: Decodable {

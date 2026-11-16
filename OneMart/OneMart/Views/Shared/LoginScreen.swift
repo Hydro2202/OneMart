@@ -52,6 +52,15 @@ struct LoginScreen: View {
                     .onChange(of: password) { _ in clearErrors() }
 
                     HStack {
+                        // Fills in the shared demo account (created by
+                        // supabase/RUN_THIS_SECOND.sql) for quick demos.
+                        Button("Use demo account") {
+                            email = "raiden@demo.com"
+                            password = "password123"
+                        }
+                        .font(AppTextStyle.subheadline)
+                        .foregroundStyle(AppColor.coral)
+
                         Spacer()
                         Button("Forgot password?") {}
                             .font(AppTextStyle.subheadline)

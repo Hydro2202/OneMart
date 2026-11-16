@@ -2,36 +2,36 @@ import Foundation
 
 /// Configuration for the optional AI seller auto-reply in Community chat.
 ///
-/// By default every seller reply comes from `AutoReplyEngine`'s local,
-/// offline, keyword-aware fallback — no key, no network, no setup. Paste a
-/// real Gemini API key below to upgrade every reply to a real AI-generated
-/// one instead, using the listing's own details as context.
+/// When a real key is set below, every seller reply is a real Gemini reply
+/// built from the listing's own details. If every model request fails
+/// (offline, quota, bad key), `AutoReplyEngine` falls back automatically to
+/// its local, keyword-aware reply — the chat never breaks.
 ///
-/// Get a free key at https://aistudio.google.com/apikey — the Gemini API
-/// free tier is enough for a school project.
-///
-/// Same rule as `SupabaseConfig`'s anon key: this ships inside the app
-/// bundle, so only ever put a client-safe key here, never a billing-account
-/// secret meant to stay server-side.
+/// This file is GITIGNORED on purpose (it holds a real key). The committed
+/// template is `GeminiConfig.example.swift` next to it — keep both files'
+/// structure identical so a fresh clone compiles after copying the template.
 enum GeminiConfig {
-    /// Paste a real key here to turn on real Gemini replies.
-    ///
-    /// This is a modern "Auth key" (the `AQ.` prefix Google AI Studio now
-    /// issues by default, replacing the older `AIzaSy...` format) — it's
-    /// sent the same way, as a `key` query parameter (and, for extra
-    /// compatibility, as an `x-goog-api-key` header too) against the native
-    /// `generativelanguage.googleapis.com` endpoint. See `AutoReplyEngine`.
-    static let apiKey = GeminiSecrets.apiKey
+    /// Google AI Studio key for the "OneMart" project. Sent both as a `key`
+    /// query parameter and as an `x-goog-api-key` header (see
+    /// `AutoReplyEngine`) for compatibility with the newer "AQ." key format.
+    static let apiKey = "AQ.Ab8RN6ISH_G9aoxvR85VYMJTCNcOZW6ubpo6-QrGnv8QVywwyA"
 
-    /// `generateContent` model id. Flash is fast and cheap enough for a
-    /// one-line chat reply.
-    static let model = "gemini-2.0-flash"
+    /// `generateContent` model ids, tried in order until one answers.
+    /// (`gemini-2.0-flash`, the old default, was shut down by Google on
+    /// June 1, 2026 — every request to it now fails.) Lite/Flash models are
+    /// fast and cheap enough for a one-line chat reply and are on the free
+    /// tier.
+    static let models = [
+        "gemini-2.5-flash-lite",
+        "gemini-2.5-flash",
+        "gemini-3.5-flash-lite"
+    ]
 
     static var isConfigured: Bool {
         !apiKey.isEmpty && apiKey != "YOUR-GEMINI-API-KEY"
     }
 
-    static var endpoint: URL {
+    static func endpoint(for model: String) -> URL {
         URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent?key=\(apiKey)")!
     }
 }

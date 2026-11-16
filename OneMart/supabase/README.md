@@ -2,8 +2,26 @@
 
 ## Applying the schema
 
-**Dashboard (no CLI needed):** open your project → SQL Editor → paste the
-full contents of `migrations/0001_init.sql` → Run.
+**Dashboard (no CLI needed):** open your project → SQL Editor → New query →
+paste the full contents of `RUN_THIS_ONCE.sql` → Run. That file is just
+`migrations/0001_init.sql` + `migrations/0002_wallet_guard.sql` combined
+into one paste — if you change a migration, regenerate it (or run the
+migrations one by one instead).
+
+**Then run `RUN_THIS_SECOND.sql` the same way** (safe to re-run). It is
+`migrations/0003_auto_confirm.sql` + `seed_demo_account.sql`:
+- every new account is confirmed instantly, so sign-up logs straight in;
+- creates the demo account **raiden@demo.com / password123** with ₱1,000 in
+  its wallet (the Login screen's "Use demo account" button fills it in).
+- sign-up goes through the `create_account` function (0004), which never
+  sends an email — so "email rate limit exceeded" can no longer happen;
+- re-running it repairs the demo account if it ever gets stuck.
+
+**Email confirmation:** also turn off Authentication → Sign In / Providers →
+Email → "Confirm email". The trigger above already makes login instant, but
+with the setting on Supabase still tries to send a confirmation email, and
+its free built-in mailer only allows a few per hour — after that, sign-up
+fails with "email rate limit exceeded".
 
 **CLI:**
 ```bash
